@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { useSwipeProfiles, useFullProfile } from "@/features/profiles/api/get-profiles";
 import type { SwipeProfile } from "@/features/profiles/types/swipe-profile";
 import { useRecordSwipe } from "@/features/swiping/api/use-swipes";
-import { getCurrentUser, getUnswipedProfiles } from "@/lib/storage";
+import { getCurrentUser, getUnswipedProfiles, clearSwipesForUser } from "@/lib/storage";
 
 // ============================================================================
 // Orientation Filtering Utilities
@@ -109,14 +109,18 @@ const Swiping = () => {
   const [recentMatches, setRecentMatches] = useState<Profile[]>([]);
   const [flippedId, setFlippedId] = useState<number | null>(null);
   const [showMatchCelebration, setShowMatchCelebration] = useState<Profile | null>(null);
+  const [resetNonce, setResetNonce] = useState(0);
 
   // Get current user from localStorage
   const currentUser = getCurrentUser();
 
-  // Redirect to login if no current user
+  // Redirect to login if no current user, or questionnaire if old user format
   useEffect(() => {
     if (!currentUser) {
       navigate("/login");
+    } else if (currentUser.startsWith("user-")) {
+      // Old format user ID - needs re-onboarding
+      navigate("/questionnaire");
     }
   }, [currentUser, navigate]);
 
@@ -165,7 +169,7 @@ const Swiping = () => {
         ...p,
         numericId: i,
       }));
-  }, [swipeProfiles, currentUser, currentUserProfile]);
+  }, [swipeProfiles, currentUser, currentUserProfile, resetNonce]);
 
   const [cards, setCards] = useState<Profile[]>(profiles);
 
@@ -199,6 +203,16 @@ const Swiping = () => {
   };
 
   const frontId = cards[cards.length - 1]?.numericId;
+
+  const handleResetDeck = () => {
+    if (!currentUser) return;
+    clearSwipesForUser(currentUser);
+    setResetNonce((n) => n + 1);
+    setCards(profiles);
+    setFlippedId(null);
+    setShowMatchCelebration(null);
+    setRecentMatches([]);
+  };
 
   // Handle loading state
   if (isLoading) {
@@ -286,7 +300,11 @@ const Swiping = () => {
               <h1 className="text-3xl font-serif font-bold text-foreground">Swipe & Preview</h1>
             </div>
           </div>
-          <div className="hidden" />
+          <div>
+            <Button variant="outline" size="sm" onClick={handleResetDeck}>
+              Reset deck
+            </Button>
+          </div>
         </div>
 
         {/* Deck */}
@@ -312,14 +330,14 @@ const Swiping = () => {
           <div className="pointer-events-none absolute inset-x-0 bottom-[14%] flex items-center justify-center gap-4">
             <button
               className="pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full bg-background shadow-card ring-1 ring-border transition hover:scale-105"
-              onClick={() => frontId && handleSwipe(frontId, "left")}
+              onClick={() => frontId !== undefined && handleSwipe(frontId, "left")}
               aria-label="Pass"
             >
               <X className="h-6 w-6 text-foreground" />
             </button>
             <button
               className="pointer-events-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-elevated transition hover:scale-110"
-              onClick={() => frontId && handleSwipe(frontId, "right")}
+              onClick={() => frontId !== undefined && handleSwipe(frontId, "right")}
               aria-label="Like"
             >
               <Heart className="h-7 w-7" />

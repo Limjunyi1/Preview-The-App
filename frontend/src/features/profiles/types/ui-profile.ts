@@ -36,8 +36,8 @@ export function fullProfileToUIProfile(
   // Generate tags from profile attributes
   const tags = deriveTags(fullProfile);
   
-  // Use a placeholder avatar (could be made more sophisticated)
-  const avatar = getPlaceholderAvatar(profileId);
+  // Use profile_path from JSON, fallback to placeholder
+  const avatar = fullProfile.profile_path || getPlaceholderAvatar(profileId);
 
   return {
     id: profileId,

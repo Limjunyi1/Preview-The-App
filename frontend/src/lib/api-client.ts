@@ -16,8 +16,11 @@ export async function apiFetch<TResponse = Json>(
 ): Promise<TResponse> {
   const { parseJson = true, headers, ...rest } = options;
 
+  const isFormData = rest.body instanceof FormData;
+  const requestHeaders = isFormData ? headers : { ...defaultHeaders, ...headers };
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: { ...defaultHeaders, ...headers },
+    headers: requestHeaders,
     ...rest,
   });
 

@@ -1,0 +1,19 @@
+{
+  "profiles": [
+    { "id": "aaron", "filename": "aaron.json" },
+    { "id": "daniel", "filename": "daniel.json" },
+    { "id": "elena", "filename": "elena.json" },
+    { "id": "emma", "filename": "emma.json" },
+    { "id": "jason", "filename": "jason.json" },
+    { "id": "john", "filename": "john.json" },
+    { "id": "ling", "filename": "ling.json" },
+    { "id": "marcus", "filename": "marcus.json" },
+    { "id": "marvin", "filename": "marvin.json" },
+    { "id": "maya", "filename": "maya.json" },
+    { "id": "olivia", "filename": "olivia.json" },
+    { "id": "priya", "filename": "priya.json" },
+    { "id": "sarah", "filename": "sarah.json" },
+    { "id": "sofia", "filename": "sofia.json" }
+  ]
+}
+

@@ -11,6 +11,7 @@
     "employment_industry": "Healthcare",
     "orientation": "men"
   },
+  "profile_path": "",
   "relationship": {
     "intent": "long-term",
     "pace_to_meet": "tea/coffee in a week"

@@ -1,0 +1,65 @@
+{
+  "profile": {
+    "display_name": "Ling",
+    "age": 22,
+    "gender": "male",
+    "pronouns": "he/him",
+    "location": "Subang Jaya",
+    "height": "181 cm",
+    "employment_status": "student",
+    "employment_title": "Bachelor of Computer Science student",
+    "employment_industry": "Education / Tech",
+    "orientation": "girls only"
+  },
+  "relationship": {
+    "intent": null,
+    "pace_to_meet": null
+  },
+  "lifestyle": {
+    "social_energy": null,
+    "weekend_default": null,
+    "travel_style": null,
+    "work_life_balance": null,
+    "pets": null
+  },
+  "values": {
+    "family_closeness": null,
+    "money_mindset": null,
+    "openness_to_kids": null,
+    "faith_importance": null,
+    "political_engagement": null,
+    "other_values": []
+  },
+  "communication": {
+    "conflict_style": null,
+    "texting_cadence": null,
+    "love_languages": []
+  },
+  "empathy_accountability": {
+    "past_relationship_reflection": null,
+    "accountability_style": null,
+    "red_flags_detected": []
+  },
+  "dealbreakers": [],
+  "must_haves": [],
+  "agent_persona": {
+    "tone": "casual",
+    "vocabulary_style": "simple",
+    "humor_style": "none",
+    "emoji_punctuation": "rare; mostly standard punctuation",
+    "directness": "very direct",
+    "energy_level": "chill",
+    "emotional_expressiveness": "guarded",
+    "quirks_and_phrases": [],
+    "example_messages": [
+      "im ling",
+      "22, 2003",
+      "i am into girls only",
+      "i meant lets start swiping"
+    ],
+    "system_prompt_snippet": "This user is direct and uses simple, concise language. They don't use emojis or slang. Their responses are brief and to the point. Mimic a chill and straightforward communication style."
+  },
+  "additional_notes": "User explicitly wanted to stop the onboarding process early to start swiping.",
+  "AI_summary": "Ling's 22, he/him, and studying Comp Sci in Subang Jaya. He's 181 cm and into girls only. The vibe's pretty chill and direct, no-nonsense. Didn't get a chance to dive into the deeper stuff, so some info's still TBD, but he's ready to jump into the app!",
+  "confidence_score": "low"
+}

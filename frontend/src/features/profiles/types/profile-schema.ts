@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-// Full profile schema matching /profiles/*.json structure
+// Full profile schema matching /json/*.json structure
 export const ProfileInfoSchema = z.object({
   display_name: z.string(),
   age: z.number(),
@@ -8,11 +8,14 @@ export const ProfileInfoSchema = z.object({
   pronouns: z.string().nullable().optional(),
   location: z.string(),
   height: z.string().nullable().optional(),
+  employment_status: z.string().nullable().optional(),
+  employment_title: z.string().nullable().optional(),
+  employment_industry: z.string().nullable().optional(),
   orientation: z.string(),
 });
 
 export const RelationshipSchema = z.object({
-  intent: z.string(),
+  intent: z.string().nullable().optional(),
   pace_to_meet: z.string().nullable().optional(),
 });
 
@@ -46,20 +49,21 @@ export const EmpathyAccountabilitySchema = z.object({
 });
 
 export const AgentPersonaSchema = z.object({
-  tone: z.string().optional(),
-  vocabulary_style: z.string().optional(),
-  humor_style: z.string().optional(),
-  emoji_punctuation: z.string().optional(),
-  directness: z.string().optional(),
-  energy_level: z.string().optional(),
-  emotional_expressiveness: z.string().optional(),
+  tone: z.string().nullable().optional(),
+  vocabulary_style: z.string().nullable().optional(),
+  humor_style: z.string().nullable().optional(),
+  emoji_punctuation: z.string().nullable().optional(),
+  directness: z.string().nullable().optional(),
+  energy_level: z.string().nullable().optional(),
+  emotional_expressiveness: z.string().nullable().optional(),
   quirks_and_phrases: z.array(z.string()).optional(),
   example_messages: z.array(z.string()).optional(),
-  system_prompt_snippet: z.string().optional(),
+  system_prompt_snippet: z.string().nullable().optional(),
 });
 
 export const FullProfileSchema = z.object({
   profile: ProfileInfoSchema,
+  profile_path: z.string().optional(),
   relationship: RelationshipSchema,
   lifestyle: LifestyleSchema,
   values: ValuesSchema,

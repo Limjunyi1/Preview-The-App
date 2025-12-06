@@ -18,7 +18,7 @@ interface ProfileManifest {
  * Fetch the profile manifest (list of available profiles)
  */
 async function fetchProfileManifest(): Promise<ProfileManifest> {
-  const response = await fetch("/profiles/index.json");
+  const response = await fetch("/json/index.json");
   if (!response.ok) {
     throw new Error(`Failed to fetch profile manifest: ${response.statusText}`);
   }
@@ -29,7 +29,7 @@ async function fetchProfileManifest(): Promise<ProfileManifest> {
  * Fetch a single profile by ID from the static assets
  */
 async function fetchFullProfileFromStatic(profileId: string): Promise<FullProfile> {
-  const response = await fetch(`/profiles/${profileId}.json`);
+  const response = await fetch(`/json/${profileId}.json`);
   if (!response.ok) {
     throw new Error(`Failed to fetch profile ${profileId}: ${response.statusText}`);
   }
@@ -44,6 +44,13 @@ async function fetchFullProfileFromStatic(profileId: string): Promise<FullProfil
   }
   
   return parsed.data;
+}
+
+/**
+ * Check if a profile has a valid image (non-empty profile_path)
+ */
+function hasProfileImage(profile: FullProfile): boolean {
+  return !!profile.profile_path && profile.profile_path.trim() !== "";
 }
 
 /**
@@ -71,21 +78,29 @@ async function fetchFullProfile(profileId: string): Promise<FullProfile> {
 
 /**
  * Fetch all profiles and transform them to UI format
+ * Filters out profiles without a profile_path (image)
  */
 async function fetchAllUIProfiles(): Promise<UIProfile[]> {
   const manifest = await fetchProfileManifest();
   
-  const profiles = await Promise.all(
+  const profilesWithData = await Promise.all(
     manifest.profiles.map(async ({ id }) => {
       const fullProfile = await fetchFullProfile(id);
-      // Generate a random compatibility score for demo purposes
-      // In a real app, this would be computed by the backend
-      const compatibilityScore = Math.floor(Math.random() * 25) + 70; // 70-95
-      return fullProfileToUIProfile(fullProfile, id, compatibilityScore);
+      return { fullProfile, id };
     })
   );
   
-  return profiles;
+  // Filter out profiles without images
+  const profilesWithImages = profilesWithData.filter(({ fullProfile }) => 
+    hasProfileImage(fullProfile)
+  );
+  
+  return profilesWithImages.map(({ fullProfile, id }) => {
+    // Generate a random compatibility score for demo purposes
+    // In a real app, this would be computed by the backend
+    const compatibilityScore = Math.floor(Math.random() * 25) + 70; // 70-95
+    return fullProfileToUIProfile(fullProfile, id, compatibilityScore);
+  });
 }
 
 /**
@@ -132,20 +147,28 @@ export function useUIProfile(profileId: string | undefined, compatibilityScore?:
 
 /**
  * Fetch all profiles and transform them to swipe format
+ * Filters out profiles without a profile_path (image)
  */
 async function fetchAllSwipeProfiles(): Promise<SwipeProfile[]> {
   const manifest = await fetchProfileManifest();
   
-  const profiles = await Promise.all(
+  const profilesWithData = await Promise.all(
     manifest.profiles.map(async ({ id }) => {
       const fullProfile = await fetchFullProfile(id);
-      // Generate a random compatibility score for demo purposes
-      const compatibilityScore = Math.floor(Math.random() * 25) + 70; // 70-95
-      return fullProfileToSwipeProfile(fullProfile, id, compatibilityScore);
+      return { fullProfile, id };
     })
   );
   
-  return profiles;
+  // Filter out profiles without images
+  const profilesWithImages = profilesWithData.filter(({ fullProfile }) => 
+    hasProfileImage(fullProfile)
+  );
+  
+  return profilesWithImages.map(({ fullProfile, id }) => {
+    // Generate a random compatibility score for demo purposes
+    const compatibilityScore = Math.floor(Math.random() * 25) + 70; // 70-95
+    return fullProfileToSwipeProfile(fullProfile, id, compatibilityScore);
+  });
 }
 
 /**

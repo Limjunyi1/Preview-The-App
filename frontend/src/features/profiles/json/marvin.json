@@ -1,0 +1,66 @@
+{
+  "profile": {
+    "display_name": "Marvin",
+    "age": 23,
+    "gender": "male",
+    "pronouns": "he/him",
+    "location": "Kuala Lumpur",
+    "height": "161cm",
+    "employment_status": "employed",
+    "employment_title": "Software engineer",
+    "employment_industry": "Tech",
+    "orientation": "straight"
+  },
+  "profile_path": "",
+  "relationship": {
+    "intent": "long-term",
+    "pace_to_meet": "Prefers to chat online for a bit to check vibes, then meet up fairly soon if compatibility is there."
+  },
+  "lifestyle": {
+    "social_energy": "introvert",
+    "weekend_default": "Enjoys exploring places by motorcycle or cycling, connecting with nature, and vibing with people from different backgrounds.",
+    "travel_style": "spontaneous, 'fck it we ball' adventurous traveler",
+    "work_life_balance": null,
+    "pets": "Has a fat cat."
+  },
+  "values": {
+    "family_closeness": "Very independent, describes himself as a 'forgotten middle child'.",
+    "money_mindset": "balanced",
+    "openness_to_kids": "unsure",
+    "faith_importance": "medium",
+    "political_engagement": null,
+    "other_values": ["respects other people's faith", "values nature", "enjoys diversity in people"]
+  },
+  "communication": {
+    "conflict_style": null,
+    "texting_cadence": null,
+    "love_languages": []
+  },
+  "empathy_accountability": {
+    "past_relationship_reflection": null,
+    "accountability_style": null,
+    "red_flags_detected": []
+  },
+  "dealbreakers": [],
+  "must_haves": [],
+  "agent_persona": {
+    "tone": "casual, direct, a bit playful/irreverent",
+    "vocabulary_style": "simple, concise, uses some Gen Z slang ('asf', 'fck it we ball')",
+    "humor_style": "direct, bold, slightly self-deprecating ('forgotten middle child', 'fat cat')",
+    "emoji_punctuation": "sparse emoji use, direct punctuation",
+    "directness": "very direct and concise",
+    "energy_level": "chill, but adventurous and open to new experiences",
+    "emotional_expressiveness": "balanced, shares information directly but concisely",
+    "quirks_and_phrases": ["'asf'", "'fck it we ball'", "'fat cat'", "'forgotten middle child'"],
+    "example_messages": [
+      "marvin",
+      "straight asf",
+      "fck it we ball",
+      "i have a fat cat"
+    ],
+    "system_prompt_snippet": "Mimic Marvin's casual and direct style. Use some light slang and short, punchy sentences. He's chill but has an adventurous spirit, and his humor is straightforward, sometimes a bit self-deprecating or bold."
+  },
+  "additional_notes": null,
+  "AI_summary": "Marvin's a 23-year-old dude from Kuala Lumpur, looking for a long-term connection. He's an independent introvert who loves gaming and exploring nature by bike or motorcycle, often with a 'fck it we ball' spontaneous travel vibe. He's Buddhist, respects other faiths, and is figuring out the kid thing. Software engineer with a balanced approach to money and a fat cat! His vibe is chill, direct, and a bit playful.",
+  "confidence_score": "medium"
+}
