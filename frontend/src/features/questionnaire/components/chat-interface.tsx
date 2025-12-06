@@ -563,26 +563,9 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
               },
             ]);
             
-            // Check if onboarding is complete
+            // Check if onboarding is complete - navigate to swiping
             if (data.done && data.persona_json) {
-              setStatus("summary");
-              const backendPersona = data.persona_json;
-              setPersona({
-                title: (backendPersona.profile as any)?.display_name ?? "Your Profile",
-                subtitle: (backendPersona.AI_summary as string) ?? "Ready for meaningful connection",
-                traits: [
-                  `Values: ${(backendPersona.values as string[])?.slice(0, 3).join(", ") ?? "—"}`,
-                  `Interests: ${(backendPersona.hobbies as string[])?.slice(0, 3).join(", ") ?? "—"}`,
-                ],
-                goals: [
-                  "Find partners whose values align with yours",
-                  "Build meaningful connections based on shared interests",
-                ],
-                recommendations: [
-                  "Be authentic in your conversations",
-                  "Focus on shared values and interests",
-                ],
-              });
+              setTimeout(() => navigate("/swiping"), 1500);
             }
           },
           onError: () => {
@@ -667,27 +650,9 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
               },
             ]);
             
-            // Check if onboarding is complete
+            // Check if onboarding is complete - navigate to swiping
             if (data.done && data.persona_json) {
-              setStatus("summary");
-              // Convert backend persona to our format
-              const backendPersona = data.persona_json;
-              setPersona({
-                title: (backendPersona.profile as any)?.display_name ?? "Your Profile",
-                subtitle: (backendPersona.AI_summary as string) ?? "Ready for meaningful connection",
-                traits: [
-                  `Values: ${(backendPersona.values as string[])?.slice(0, 3).join(", ") ?? "—"}`,
-                  `Interests: ${(backendPersona.hobbies as string[])?.slice(0, 3).join(", ") ?? "—"}`,
-                ],
-                goals: [
-                  "Find partners whose values align with yours",
-                  "Build meaningful connections based on shared interests",
-                ],
-                recommendations: [
-                  "Be authentic in your conversations",
-                  "Focus on shared values and interests",
-                ],
-              });
+              setTimeout(() => navigate("/swiping"), 1500);
             }
           },
           onError: () => {

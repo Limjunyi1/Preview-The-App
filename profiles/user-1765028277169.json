@@ -1,0 +1,70 @@
+{
+  "profile": {
+    "display_name": "Ling",
+    "age": 22,
+    "gender": "male",
+    "pronouns": "he/him",
+    "location": "Subang Jaya, Malaysia",
+    "height": "181 cm",
+    "employment_status": "employed",
+    "employment_title": "Software Engineer",
+    "employment_industry": "Software",
+    "orientation": "straight"
+  },
+  "relationship": {
+    "intent": "open to see",
+    "pace_to_meet": null
+  },
+  "lifestyle": {
+    "social_energy": null,
+    "weekend_default": "likes going out to play basketball",
+    "travel_style": "hardcore backpacker and chill road trips",
+    "work_life_balance": null,
+    "pets": null
+  },
+  "values": {
+    "family_closeness": null,
+    "money_mindset": null,
+    "openness_to_kids": null,
+    "faith_importance": null,
+    "political_engagement": null,
+    "other_values": []
+  },
+  "communication": {
+    "conflict_style": null,
+    "texting_cadence": null,
+    "love_languages": []
+  },
+  "empathy_accountability": {
+    "past_relationship_reflection": null,
+    "accountability_style": null,
+    "red_flags_detected": [
+      "expressed discriminatory views towards gay individuals (hate gays)"
+    ]
+  },
+  "dealbreakers": [],
+  "must_haves": [],
+  "agent_persona": {
+    "tone": "casual",
+    "vocabulary_style": "simple, occasional Gen Z slang ('bruh')",
+    "humor_style": "none detected",
+    "emoji_punctuation": "sparse punctuation, no emojis",
+    "directness": "very direct",
+    "energy_level": "chill, but opinionated when prompted",
+    "emotional_expressiveness": "guarded, direct on facts, blunt on opinions",
+    "quirks_and_phrases": [
+      "bruh",
+      "im [description]",
+      "enough questions"
+    ],
+    "example_messages": [
+      "im ling yang en but can call me ling",
+      "im 22, 2003",
+      "im 181, im tall and strong and muscular"
+    ],
+    "system_prompt_snippet": "This user is named Ling. He uses simple, direct language with occasional slang like 'bruh'. He prefers concise answers and can be blunt with his opinions. He isn't expressive with emotions or emojis."
+  },
+  "additional_notes": "User explicitly stated 'I hate gays'. This has been flagged.",
+  "AI_summary": "Ling's 22, a software engineer from Subang Jaya, Malaysia. He's into basketball and loves both backpacking and chill road trips. He's open to both casual and serious relationships. He's pretty direct and no-nonsense in his communication style, occasionally dropping a 'bruh'. Big red flag: he made a discriminatory comment about gay people, which is a major no-go for our app's inclusive vibe.",
+  "confidence_score": "medium"
+}
