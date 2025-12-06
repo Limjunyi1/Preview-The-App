@@ -88,7 +88,7 @@ const Swiping = () => {
     <div className="min-h-screen bg-gradient-to-b from-secondary/30 via-secondary/20 to-background px-4 pt-20 pb-6">
       {/* Header (dashboard style) */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
-        <div className="container mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="max-w-screen-2xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link to="/dashboard">
               <Button variant="ghost" size="sm" className="px-3">

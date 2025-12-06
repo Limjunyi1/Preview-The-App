@@ -17,13 +17,13 @@ const MatchCard = ({ match, onRunSimulation, onViewReport }: MatchCardProps) => 
 
   return (
     <div className={cn(
-      "group relative w-full max-w-[300px] mx-auto rounded-2xl border border-border bg-card overflow-hidden transition-all duration-300",
+      "group relative w-full rounded-2xl border border-border bg-card overflow-hidden transition-all duration-300",
       status === "simulating" && "ring-2 ring-primary/50",
       status === "completed" && "hover:shadow-elevated cursor-pointer"
     )}>
       {/* Simulating Overlay */}
       {status === "simulating" && (
-        <div className="absolute inset-0 bg-background/90 backdrop-blur-sm z-10 flex flex-col items-center justify-center p-6">
+        <div className="absolute inset-0 bg-background/90 backdrop-blur-sm z-10 flex flex-col items-center justify-center p-5">
           <div className="relative mb-6">
             <div className="w-16 h-16 rounded-full gradient-primary animate-pulse flex items-center justify-center">
               <Sparkles className="w-8 h-8 text-primary-foreground" />

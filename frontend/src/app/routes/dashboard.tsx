@@ -178,7 +178,7 @@ const Dashboard = () => {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
-        <div className="container mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="max-w-screen-2xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center">
             <BrandLogo className="-ml-16 scale-[0.85]" />
           </Link>
@@ -332,7 +332,7 @@ const Dashboard = () => {
           </div>
 
           {/* Match Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 justify-items-center">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
             {paginatedMatches.map((match) => (
               <MatchCard
                 key={match.id}
