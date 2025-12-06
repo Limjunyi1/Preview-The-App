@@ -5,16 +5,28 @@ import json
 import os
 import re
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Callable, Optional
 from uuid import uuid4
 
 import google.generativeai as genai
+import yaml
 from dotenv import load_dotenv
 
 from .models import Message, PersonaSummary, SimulationRequest, SimulationRun, Trailer
 
 DEFAULT_MODEL = "gemini-2.5-flash"
 MAX_TURNS = 50
+REPO_ROOT = Path(__file__).resolve().parent.parent
+PROMPT_PATH = REPO_ROOT / "Prompts" / "simulationPrompt.yaml"
+
+
+def _load_prompts() -> dict:
+    with open(PROMPT_PATH, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
+
+PROMPTS = _load_prompts()
 
 
 def _strip_code_fence(text: str) -> str:
@@ -27,15 +39,11 @@ def _strip_code_fence(text: str) -> str:
 def _build_system_instruction(persona: PersonaSummary) -> str:
     """Persona-specific system prompt with safety guidance."""
     persona_blob = json.dumps(persona.persona_json or {}, indent=2)
-    return (
-        f"You are {persona.display_name}. Stay authentic to this self-summary:\n"
-        f"{persona.ai_summary}\n"
-        f"Full persona JSON for grounding:\n{persona_blob}\n"
-        "Style: playful, natural, not formal. Keep replies concise (1-3 sentences). "
-        "Ask light questions, react like a warm texting exchange.\n"
-        "Safety: do not generate threats, violence, hate, harassment, or dangerous advice. "
-        "Avoid explicit sexual content; romantic/affectionate tone is okay. "
-        "No medical/legal/financial directives."
+    template = PROMPTS.get("agent_system_prompt", "")
+    return template.format(
+        display_name=persona.display_name,
+        ai_summary=persona.ai_summary,
+        persona_json=persona_blob,
     )
 
 
@@ -66,19 +74,8 @@ def _build_summary_prompt(transcript: list[Message], persona_a: PersonaSummary, 
         speaker = persona_a.display_name if msg.speaker == "a" else persona_b.display_name
         lines.append(f"{speaker}: {msg.text}")
     convo = "\n".join(lines)
-    return (
-        "You are a neutral judge summarizing a simulated first-date chat. "
-        "Return a JSON object with keys: "
-        '{"high_point","friction_point","vibe","snippet","icebreakers"}.\n'
-        "- high_point: 1 short line highlighting the best moment.\n"
-        "- friction_point: 1 short line for any tension/mismatch; if none, say 'None noted'.\n"
-        "- vibe: 1 short line vibe score (e.g., '70% playful, 30% thoughtful').\n"
-        "- snippet: 2-3 line excerpt capturing the chat flavor.\n"
-        "- icebreakers: array of 3 upbeat prompts the humans could use.\n"
-        "Stay PG-13, avoid hate/harassment/threats. Base only on this transcript:\n"
-        f"{convo}\n"
-        "Return JSON only."
-    )
+    template = PROMPTS.get("summary_prompt", "")
+    return template.format(conversation=convo)
 
 
 def _summarize_transcript(
