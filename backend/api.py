@@ -14,6 +14,7 @@ from uuid import uuid4
 import sounddevice as sd
 import soundfile as sf
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from openai import OpenAI
 from pydantic import BaseModel, Field
 
@@ -206,6 +207,20 @@ APP_START = time.time()
 # FastAPI app
 # ------------------------------------------------------------------------------
 app = FastAPI(title="DatesDraft API", version="0.2.0")
+
+# CORS configuration for frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:8080",
+        "http://localhost:5173",
+        "http://127.0.0.1:8080",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # ------------------------------------------------------------------------------

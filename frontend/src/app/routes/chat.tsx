@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Sparkles, Send, MoreVertical, Phone, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,46 +7,41 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useUIProfile } from "@/features/profiles/api/get-profiles";
 import type { UIProfile } from "@/features/profiles/types/ui-profile";
-
-type ChatMessage = {
-  id: string;
-  sender: "user" | "match";
-  text: string;
-  timestamp: number;
-};
+import { getCurrentUser } from "@/lib/storage";
+import { useChatMessages, useSaveChatMessage } from "@/features/chat/api/use-messages";
 
 const Chat = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id: matchUserId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: "welcome-1",
-      sender: "match",
-      text: "Hey! Thanks for matching — want to plan something fun this week?",
-      timestamp: Date.now() - 1000 * 60 * 3
-    },
-    {
-      id: "welcome-2",
-      sender: "user",
-      text: "Hi! I'd love that. How does Thursday evening look for you?",
-      timestamp: Date.now() - 1000 * 60 * 2
+
+  // Get current user from localStorage
+  const currentUser = getCurrentUser();
+
+  // Redirect if not logged in
+  useEffect(() => {
+    if (!currentUser) {
+      navigate("/login");
     }
-  ]);
+  }, [currentUser, navigate]);
+
+  // Fetch messages from localStorage via React Query
+  const { data: messages = [] } = useChatMessages(currentUser, matchUserId ?? null);
+  const saveChatMessageMutation = useSaveChatMessage();
 
   // Fetch the profile data
-  const { data: profile, isLoading, error } = useUIProfile(id);
+  const { data: profile } = useUIProfile(matchUserId);
 
   // Fallback profile if loading or error
   const displayProfile: UIProfile = profile ?? {
-    id: id ?? "unknown",
+    id: matchUserId ?? "unknown",
     name: "New Match",
     age: 0,
     occupation: "—",
     location: "—",
     avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=320&h=320&fit=crop",
-    tags: []
+    tags: [],
   };
 
   useEffect(() => {
@@ -56,28 +51,27 @@ const Chat = () => {
   const handleSend = (e?: FormEvent) => {
     e?.preventDefault();
     const text = input.trim();
-    if (!text) return;
+    if (!text || !currentUser || !matchUserId) return;
 
-    const userMessage: ChatMessage = {
-      id: `user-${Date.now()}`,
-      sender: "user",
-      text,
-      timestamp: Date.now()
-    };
+    // Save user message to localStorage
+    saveChatMessageMutation.mutate({
+      currentUserId: currentUser,
+      matchUserId: matchUserId,
+      message: { sender: "user", text },
+    });
 
-    setMessages(prev => [...prev, userMessage]);
     setInput("");
 
+    // Simulate match response (in a real app, this would come from the other user)
     setTimeout(() => {
-      setMessages(prev => [
-        ...prev,
-        {
-          id: `match-${Date.now()}`,
+      saveChatMessageMutation.mutate({
+        currentUserId: currentUser,
+        matchUserId: matchUserId,
+        message: {
           sender: "match",
           text: "Sounds good! I can do Thursday after 7pm. Want to try that new tapas spot downtown?",
-          timestamp: Date.now()
-        }
-      ]);
+        },
+      });
     }, 900);
   };
 

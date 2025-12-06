@@ -8,6 +8,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Heart, Send, Sparkles, Brain, FileText, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getCurrentUser, setCurrentUser } from "@/lib/storage";
+import {
+  useOnboardingStart,
+  useOnboardingReply,
+} from "@/features/onboarding/api/use-onboarding";
 
 interface Message {
   id: string;
@@ -54,9 +59,20 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Backend integration state
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [useBackend, setUseBackend] = useState(true);
+  const [userId] = useState(() => getCurrentUser() ?? `user-${Date.now()}`);
+
+  // API hooks
+  const onboardingStartMutation = useOnboardingStart();
+  const onboardingReplyMutation = useOnboardingReply();
+
   const totalQuestions = categories.reduce((acc, cat) => acc + cat.questions.length, 0);
   const answeredQuestions = Object.keys(answers).length;
-  const progressPercent = (answeredQuestions / totalQuestions) * 100;
+  const progressPercent = useBackend && sessionId 
+    ? Math.min(90, messages.filter(m => m.sender === 'user').length * 15) 
+    : (answeredQuestions / totalQuestions) * 100;
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -66,8 +82,38 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
     scrollToBottom();
   }, [messages]);
 
+  // Start onboarding session with backend
   useEffect(() => {
-    // Initialize with welcome messages
+    if (useBackend && !sessionId && !onboardingStartMutation.isPending) {
+      // Ensure user ID is set
+      setCurrentUser(userId);
+      
+      onboardingStartMutation.mutate(
+        { userId },
+        {
+          onSuccess: (data) => {
+            setSessionId(data.session_id);
+            setMessages([
+              {
+                id: `ai-${Date.now()}`,
+                content: data.opening_text,
+                sender: "ai",
+                timestamp: new Date(),
+              },
+            ]);
+          },
+          onError: () => {
+            // Fall back to frontend-only mode
+            setUseBackend(false);
+            initializeFrontendMode();
+          },
+        }
+      );
+    }
+  }, [useBackend, sessionId, userId, onboardingStartMutation]);
+
+  // Initialize frontend-only mode with welcome messages
+  const initializeFrontendMode = () => {
     const welcomeMessages: Message[] = [
       {
         id: "welcome-1",
@@ -101,7 +147,7 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
         }
       }, index * 1500);
     });
-  }, []);
+  };
 
   const buildPersonaSummary = (): PersonaSummary => {
     const pick = (catId: string, questionIndex: number) =>
@@ -234,8 +280,6 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
   const handleOptionSelect = (option: string) => {
     if (status !== "chat") return;
 
-    const questionKey = `${categories[currentCategoryIndex].id}-${currentQuestionIndex}`;
-    
     // Add user's response
     const userMessage: Message = {
       id: `user-${Date.now()}`,
@@ -245,6 +289,66 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
     };
     
     setMessages(prev => [...prev, userMessage]);
+
+    // If using backend, send the option as a message
+    if (useBackend && sessionId) {
+      setIsTyping(true);
+      onboardingReplyMutation.mutate(
+        { sessionId, message: option },
+        {
+          onSuccess: (data) => {
+            setIsTyping(false);
+            setMessages(prev => [
+              ...prev,
+              {
+                id: `ai-${Date.now()}`,
+                content: data.reply,
+                sender: "ai",
+                timestamp: new Date(),
+              },
+            ]);
+            
+            // Check if onboarding is complete
+            if (data.done && data.persona_json) {
+              setStatus("summary");
+              const backendPersona = data.persona_json;
+              setPersona({
+                title: (backendPersona.profile as any)?.display_name ?? "Your Profile",
+                subtitle: (backendPersona.AI_summary as string) ?? "Ready for meaningful connection",
+                traits: [
+                  `Values: ${(backendPersona.values as string[])?.slice(0, 3).join(", ") ?? "—"}`,
+                  `Interests: ${(backendPersona.hobbies as string[])?.slice(0, 3).join(", ") ?? "—"}`,
+                ],
+                goals: [
+                  "Find partners whose values align with yours",
+                  "Build meaningful connections based on shared interests",
+                ],
+                recommendations: [
+                  "Be authentic in your conversations",
+                  "Focus on shared values and interests",
+                ],
+              });
+            }
+          },
+          onError: () => {
+            setIsTyping(false);
+            setMessages(prev => [
+              ...prev,
+              {
+                id: `ai-${Date.now()}`,
+                content: "Sorry, I had trouble processing that. Could you try again?",
+                sender: "ai",
+                timestamp: new Date(),
+              },
+            ]);
+          },
+        }
+      );
+      return;
+    }
+
+    // Frontend-only mode: use category-based questions
+    const questionKey = `${categories[currentCategoryIndex].id}-${currentQuestionIndex}`;
     setAnswers(prev => ({ ...prev, [questionKey]: option }));
     
     // Move to next question
@@ -286,20 +390,78 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
     };
     
     setMessages(prev => [...prev, userMessage]);
+    const messageText = inputValue;
     setInputValue("");
     
-    // Simulate AI response
-    setIsTyping(true);
-    setTimeout(() => {
-      const aiMessage: Message = {
-        id: `ai-${Date.now()}`,
-        content: "I appreciate your message! However, I'd like to focus on the questionnaire to better understand your preferences. Let's continue with the questions.",
-        sender: 'ai',
-        timestamp: new Date(),
-      };
-      setIsTyping(false);
-      setMessages(prev => [...prev, aiMessage]);
-    }, 1500);
+    // Use backend if we have a session
+    if (useBackend && sessionId) {
+      setIsTyping(true);
+      onboardingReplyMutation.mutate(
+        { sessionId, message: messageText },
+        {
+          onSuccess: (data) => {
+            setIsTyping(false);
+            setMessages(prev => [
+              ...prev,
+              {
+                id: `ai-${Date.now()}`,
+                content: data.reply,
+                sender: "ai",
+                timestamp: new Date(),
+              },
+            ]);
+            
+            // Check if onboarding is complete
+            if (data.done && data.persona_json) {
+              setStatus("summary");
+              // Convert backend persona to our format
+              const backendPersona = data.persona_json;
+              setPersona({
+                title: (backendPersona.profile as any)?.display_name ?? "Your Profile",
+                subtitle: (backendPersona.AI_summary as string) ?? "Ready for meaningful connection",
+                traits: [
+                  `Values: ${(backendPersona.values as string[])?.slice(0, 3).join(", ") ?? "—"}`,
+                  `Interests: ${(backendPersona.hobbies as string[])?.slice(0, 3).join(", ") ?? "—"}`,
+                ],
+                goals: [
+                  "Find partners whose values align with yours",
+                  "Build meaningful connections based on shared interests",
+                ],
+                recommendations: [
+                  "Be authentic in your conversations",
+                  "Focus on shared values and interests",
+                ],
+              });
+            }
+          },
+          onError: () => {
+            setIsTyping(false);
+            setMessages(prev => [
+              ...prev,
+              {
+                id: `ai-${Date.now()}`,
+                content: "Sorry, I had trouble processing that. Could you try again?",
+                sender: "ai",
+                timestamp: new Date(),
+              },
+            ]);
+          },
+        }
+      );
+    } else {
+      // Frontend-only fallback
+      setIsTyping(true);
+      setTimeout(() => {
+        const aiMessage: Message = {
+          id: `ai-${Date.now()}`,
+          content: "I appreciate your message! However, I'd like to focus on the questionnaire to better understand your preferences. Let's continue with the questions.",
+          sender: 'ai',
+          timestamp: new Date(),
+        };
+        setIsTyping(false);
+        setMessages(prev => [...prev, aiMessage]);
+      }, 1500);
+    }
   };
 
   const TypingIndicator = () => (

@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { Eye, EyeOff, Linkedin, Mail } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { setCurrentUser } from "@/lib/storage";
 
 export function LoginForm() {
   const [email, setEmail] = useState("");
@@ -21,10 +22,11 @@ export function LoginForm() {
 
     setIsLoading(true);
     
-    // Simulate API call
+    // Simulate API call and set current user
     setTimeout(() => {
       setIsLoading(false);
-      console.log("Login attempt:", { email, password });
+      // For POC, use hardcoded user ID "marvin"
+      setCurrentUser("marvin");
       navigate("/dashboard");
     }, 1000);
   };

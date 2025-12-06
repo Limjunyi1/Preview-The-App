@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, useMotionValue, useTransform } from "framer-motion";
 import { Heart, Info, MapPin, ArrowLeft, Shield, Sparkles, Star, User, Settings, LogOut, X } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { cn } from "@/lib/utils";
 import { useSwipeProfiles } from "@/features/profiles/api/get-profiles";
 import type { SwipeProfile } from "@/features/profiles/types/swipe-profile";
+import { useRecordSwipe } from "@/features/swiping/api/use-swipes";
+import { getCurrentUser, getUnswipedProfiles } from "@/lib/storage";
 
 type SwipeDirection = "left" | "right";
 
@@ -26,20 +28,39 @@ type CardProps = Profile & {
 };
 
 const Swiping = () => {
-  const [matches, setMatches] = useState<Profile[]>([]);
+  const navigate = useNavigate();
+  const [recentMatches, setRecentMatches] = useState<Profile[]>([]);
   const [flippedId, setFlippedId] = useState<number | null>(null);
+  const [showMatchCelebration, setShowMatchCelebration] = useState<Profile | null>(null);
+
+  // Get current user from localStorage
+  const currentUser = getCurrentUser();
+
+  // Redirect to login if no current user
+  useEffect(() => {
+    if (!currentUser) {
+      navigate("/login");
+    }
+  }, [currentUser, navigate]);
 
   // Fetch real profile data
   const { data: swipeProfiles, isLoading, error } = useSwipeProfiles();
 
-  // Transform SwipeProfile[] to Profile[] with numeric IDs
+  // Record swipe mutation
+  const recordSwipeMutation = useRecordSwipe();
+
+  // Filter to only show unswiped profiles and transform to Profile[] with numeric IDs
   const profiles = useMemo(() => {
-    if (!swipeProfiles) return [];
-    return swipeProfiles.map((p, i) => ({
-      ...p,
-      numericId: i,
-    }));
-  }, [swipeProfiles]);
+    if (!swipeProfiles || !currentUser) return [];
+    const allProfileIds = swipeProfiles.map((p) => p.id);
+    const unswipedIds = getUnswipedProfiles(currentUser, allProfileIds);
+    return swipeProfiles
+      .filter((p) => unswipedIds.includes(p.id))
+      .map((p, i) => ({
+        ...p,
+        numericId: i,
+      }));
+  }, [swipeProfiles, currentUser]);
 
   const [cards, setCards] = useState<Profile[]>(profiles);
 
@@ -51,11 +72,25 @@ const Swiping = () => {
 
   const handleSwipe = (id: number, dir: SwipeDirection) => {
     const card = cards.find((c) => c.numericId === id);
+    if (!card || !currentUser) return;
+
+    // Record the swipe in localStorage
+    recordSwipeMutation.mutate(
+      { from: currentUser, to: card.id, direction: dir },
+      {
+        onSuccess: ({ isMatch }) => {
+          if (isMatch && dir === "right") {
+            // Show match celebration
+            setShowMatchCelebration(card);
+            setRecentMatches((prev) => [card, ...prev.slice(0, 2)]);
+          }
+        },
+      }
+    );
+
+    // Remove card from deck immediately for smooth UX
     setCards((prev) => prev.filter((c) => c.numericId !== id));
     setFlippedId((current) => (current === id ? null : current));
-    if (card && dir === "right") {
-      setMatches((prev) => [card, ...prev.slice(0, 2)]);
-    }
   };
 
   const frontId = cards[cards.length - 1]?.numericId;
@@ -200,18 +235,22 @@ const Swiping = () => {
         </div>
 
         {/* Match ribbon */}
-        {matches.length > 0 && (
+        {recentMatches.length > 0 && (
           <div className="mt-8 grid gap-4 rounded-2xl border border-border bg-card/80 p-4 shadow-card">
             <div className="flex items-center gap-2">
               <Star className="w-5 h-5 text-warning" />
               <h3 className="font-semibold text-foreground">Recent matches</h3>
               <Badge variant="secondary" className="bg-success/10 text-success">
-                Auto from swipes
+                It's a match!
               </Badge>
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
-              {matches.map((match) => (
-                <div key={match.numericId} className="flex items-center gap-3 rounded-xl border border-border bg-background/80 p-3">
+              {recentMatches.map((match) => (
+                <Link
+                  key={match.numericId}
+                  to={`/chat/${match.id}`}
+                  className="flex items-center gap-3 rounded-xl border border-border bg-background/80 p-3 hover:border-primary transition-colors"
+                >
                   <img src={match.photo} alt={match.name} className="h-12 w-12 rounded-xl object-cover" />
                   <div className="flex-1">
                     <p className="font-medium text-foreground">{match.name}, {match.age}</p>
@@ -221,13 +260,52 @@ const Swiping = () => {
                       {match.compatibility}% match
                     </div>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           </div>
         )}
       </div>
 
+      {/* Match Celebration Modal */}
+      {showMatchCelebration && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="mx-4 max-w-sm w-full bg-card rounded-3xl p-8 text-center shadow-elevated animate-in zoom-in-95 duration-300">
+            <div className="flex justify-center mb-4">
+              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+                <Heart className="w-10 h-10 text-white" />
+              </div>
+            </div>
+            <h2 className="text-2xl font-serif font-bold text-foreground mb-2">It's a Match!</h2>
+            <p className="text-muted-foreground mb-6">
+              You and {showMatchCelebration.name} liked each other
+            </p>
+            <img
+              src={showMatchCelebration.photo}
+              alt={showMatchCelebration.name}
+              className="w-24 h-24 rounded-full mx-auto object-cover border-4 border-primary mb-6"
+            />
+            <div className="grid gap-3">
+              <Button
+                variant="hero"
+                className="w-full"
+                onClick={() => {
+                  navigate(`/chat/${showMatchCelebration.id}`);
+                }}
+              >
+                Send a message
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => setShowMatchCelebration(null)}
+              >
+                Keep swiping
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
