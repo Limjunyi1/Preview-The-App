@@ -1,0 +1,556 @@
+import { useState, useRef, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Progress } from "@/components/ui/progress";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Heart, Send, Sparkles, Brain, FileText, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+interface Message {
+  id: string;
+  content: string;
+  sender: 'user' | 'ai';
+  timestamp: Date;
+  options?: string[];
+}
+
+interface ChatInterfaceProps {
+  categories: Array<{
+    id: string;
+    title: string;
+    icon: any;
+    description: string;
+    questions: Array<{
+      question: string;
+      options: string[];
+    }>;
+  }>;
+}
+
+type ChatStatus = "chat" | "processing" | "summary";
+
+type PersonaSummary = {
+  title: string;
+  subtitle: string;
+  traits: string[];
+  goals: string[];
+  recommendations: string[];
+};
+
+const ChatInterface = ({ categories }: ChatInterfaceProps) => {
+  const navigate = useNavigate();
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [inputValue, setInputValue] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+  const [currentCategoryIndex, setCurrentCategoryIndex] = useState(0);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [status, setStatus] = useState<ChatStatus>("chat");
+  const [processingProgress, setProcessingProgress] = useState(0);
+  const [persona, setPersona] = useState<PersonaSummary | null>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const totalQuestions = categories.reduce((acc, cat) => acc + cat.questions.length, 0);
+  const answeredQuestions = Object.keys(answers).length;
+  const progressPercent = (answeredQuestions / totalQuestions) * 100;
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  useEffect(() => {
+    // Initialize with welcome messages
+    const welcomeMessages: Message[] = [
+      {
+        id: "welcome-1",
+        content: "Hi there! 👋 I'm your AI matchmaking assistant.",
+        sender: 'ai',
+        timestamp: new Date(),
+      },
+      {
+        id: "welcome-2", 
+        content: "I'm here to help you discover your perfect match by understanding what truly matters to you. This will only take a few minutes!",
+        sender: 'ai',
+        timestamp: new Date(),
+      },
+      {
+        id: "welcome-3",
+        content: "Let's start with understanding your financial philosophy. Ready to begin? ✨",
+        sender: 'ai',
+        timestamp: new Date(),
+      }
+    ];
+    
+    // Add welcome messages with delays
+    welcomeMessages.forEach((message, index) => {
+      setTimeout(() => {
+        setMessages(prev => [...prev, message]);
+        if (index === welcomeMessages.length - 1) {
+          // Start with first question after last welcome message
+          setTimeout(() => {
+            askQuestion();
+          }, 1500);
+        }
+      }, index * 1500);
+    });
+  }, []);
+
+  const buildPersonaSummary = (): PersonaSummary => {
+    const pick = (catId: string, questionIndex: number) =>
+      answers[`${catId}-${questionIndex}`] ?? "—";
+
+    return {
+      title: "Aligned Explorer",
+      subtitle: "Balanced, intentional, and ready for meaningful connection",
+      traits: [
+        `Financial philosophy: ${pick("financial", 0)}; risk stance: ${pick("financial", 1)}`,
+        `Lifestyle vision: ${pick("lifestyle", 0)}; kids: ${pick("lifestyle", 1)}; stability: ${pick("lifestyle", 2)}`,
+        `Conflict style: ${pick("conflict", 0)} with ${pick("conflict", 1)} communication; stress response: ${pick("conflict", 2)}`,
+        `Values & boundaries: ${pick("values", 0)}; alone time: ${pick("values", 1)}; growth: ${pick("values", 2)}`
+      ],
+      goals: [
+        "Find partners whose values and lifestyle pace stay in sync with yours",
+        "Create agreements around finances and space that feel transparent and fair",
+        "Keep communication warm but clear, especially around travel, stability, and alone time"
+      ],
+      recommendations: [
+        "Start with shared planning rituals: weekly check-ins on goals, budget, and quality time",
+        "Design travel or relocation rules that align with your stability preferences",
+        "Use conflict scripts: lead with needs, name feelings, propose one actionable next step"
+      ]
+    };
+  };
+
+  const startProcessing = () => {
+    if (status === "processing" || status === "summary") return;
+
+    setStatus("processing");
+    setIsTyping(false);
+    setProcessingProgress(0);
+
+    const processingMessage: Message = {
+      id: `processing-${Date.now()}`,
+      content: "Great work! I’m processing your responses to craft an AI persona and a concise report.",
+      sender: "ai",
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, processingMessage]);
+
+    const steps = [
+      { delay: 700, progress: 35, text: "Mapping your preferences to core traits..." },
+      { delay: 1400, progress: 70, text: "Synthesizing goals and compatibility signals..." },
+      { delay: 2100, progress: 100, text: "Generating your AI persona and personalized report..." }
+    ];
+
+    steps.forEach((step, index) => {
+      setTimeout(() => {
+        setProcessingProgress(step.progress);
+        if (index === steps.length - 1) {
+          setTimeout(() => {
+            const personaSummary = buildPersonaSummary();
+            setPersona(personaSummary);
+            setStatus("summary");
+            setMessages(prev => [
+              ...prev,
+              {
+                id: `persona-ready-${Date.now()}`,
+                content: "Your AI persona is ready. Here’s your personalized personality and goals report.",
+                sender: "ai",
+                timestamp: new Date()
+              }
+            ]);
+          }, 600);
+        }
+      }, step.delay);
+    });
+  };
+
+  const askQuestion = (categoryIndex = currentCategoryIndex, questionIndex = currentQuestionIndex) => {
+    if (categoryIndex >= categories.length) {
+      startProcessing();
+      return;
+    }
+
+    const category = categories[categoryIndex];
+    const question = category.questions[questionIndex];
+    
+    // Add category transition message for first question of new category
+    if (questionIndex === 0 && categoryIndex > 0) {
+      const transitionMessage: Message = {
+        id: `transition-${categoryIndex}`,
+        content: `Great! Now let's explore your ${category.title.toLowerCase()}. ${category.description}`,
+        sender: 'ai',
+        timestamp: new Date(),
+      };
+      
+      setIsTyping(true);
+      setTimeout(() => {
+        setIsTyping(false);
+        setMessages(prev => [...prev, transitionMessage]);
+        
+        // Ask the actual question after transition
+        setTimeout(() => {
+          setIsTyping(true);
+          setTimeout(() => {
+            const questionMessage: Message = {
+              id: `question-${categoryIndex}-${questionIndex}`,
+              content: question.question,
+              sender: 'ai',
+              timestamp: new Date(),
+              options: question.options,
+            };
+            
+            setIsTyping(false);
+            setMessages(prev => [...prev, questionMessage]);
+          }, 800);
+        }, 1000);
+      }, 600);
+    } else {
+      // Regular question
+      setIsTyping(true);
+      setTimeout(() => {
+        const questionMessage: Message = {
+          id: `question-${categoryIndex}-${questionIndex}`,
+          content: question.question,
+          sender: 'ai',
+          timestamp: new Date(),
+          options: question.options,
+        };
+        
+        setIsTyping(false);
+        setMessages(prev => [...prev, questionMessage]);
+      }, 800);
+    }
+  };
+
+  const handleOptionSelect = (option: string) => {
+    if (status !== "chat") return;
+
+    const questionKey = `${categories[currentCategoryIndex].id}-${currentQuestionIndex}`;
+    
+    // Add user's response
+    const userMessage: Message = {
+      id: `user-${Date.now()}`,
+      content: option,
+      sender: 'user',
+      timestamp: new Date(),
+    };
+    
+    setMessages(prev => [...prev, userMessage]);
+    setAnswers(prev => ({ ...prev, [questionKey]: option }));
+    
+    // Move to next question
+    const isLastQuestionInCategory = currentQuestionIndex >= categories[currentCategoryIndex].questions.length - 1;
+    const isLastCategory = currentCategoryIndex >= categories.length - 1;
+
+    let nextCategoryIndex = currentCategoryIndex;
+    let nextQuestionIndex = currentQuestionIndex;
+
+    if (!isLastQuestionInCategory) {
+      nextQuestionIndex = currentQuestionIndex + 1;
+      setCurrentQuestionIndex(nextQuestionIndex);
+    } else if (!isLastCategory) {
+      nextCategoryIndex = currentCategoryIndex + 1;
+      nextQuestionIndex = 0;
+      setCurrentCategoryIndex(nextCategoryIndex);
+      setCurrentQuestionIndex(0);
+    } else {
+      // Completed all questions
+      nextCategoryIndex = categories.length;
+      nextQuestionIndex = 0;
+      setCurrentCategoryIndex(nextCategoryIndex);
+    }
+    
+    // Ask next question or start processing after a short delay
+    setTimeout(() => {
+      askQuestion(nextCategoryIndex, nextQuestionIndex);
+    }, 900);
+  };
+
+  const handleSendMessage = () => {
+    if (!inputValue.trim()) return;
+    
+    const userMessage: Message = {
+      id: `user-${Date.now()}`,
+      content: inputValue,
+      sender: 'user',
+      timestamp: new Date(),
+    };
+    
+    setMessages(prev => [...prev, userMessage]);
+    setInputValue("");
+    
+    // Simulate AI response
+    setIsTyping(true);
+    setTimeout(() => {
+      const aiMessage: Message = {
+        id: `ai-${Date.now()}`,
+        content: "I appreciate your message! However, I'd like to focus on the questionnaire to better understand your preferences. Let's continue with the questions.",
+        sender: 'ai',
+        timestamp: new Date(),
+      };
+      setIsTyping(false);
+      setMessages(prev => [...prev, aiMessage]);
+    }, 1500);
+  };
+
+  const TypingIndicator = () => (
+    <div className="flex items-center animate-fade-in">
+      <div className="bg-card border border-border rounded-2xl px-4 py-3 shadow-card relative overflow-hidden">
+        <div className="flex items-center gap-1">
+          <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+          <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+          <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+        </div>
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent animate-pulse" />
+      </div>
+    </div>
+  );
+
+  const MessageBubble = ({ message }: { message: Message }) => (
+    <div className={cn(
+      "flex animate-fade-in-up",
+      message.sender === 'user' ? "justify-end" : "justify-start"
+    )}>
+      <div className={cn(
+        "max-w-xs lg:max-w-md",
+        message.sender === 'user' ? "text-right" : "text-left"
+      )}>
+        <div className={cn(
+          "rounded-2xl px-4 py-3 shadow-card border transition-all duration-200 hover:shadow-elevated",
+          message.sender === 'user'
+            ? "bg-primary text-primary-foreground border-primary"
+            : "bg-card text-card-foreground border-border hover:border-primary/20"
+        )}>
+          <p className="text-sm font-medium leading-relaxed">{message.content}</p>
+        </div>
+        
+        {message.options && (
+          <div className="mt-3 space-y-2 animate-fade-in" style={{ animationDelay: '200ms' }}>
+            {message.options.map((option, index) => (
+              <Button
+                key={index}
+                variant="outline"
+                size="sm"
+                onClick={() => handleOptionSelect(option)}
+                className="w-full text-left justify-start h-auto p-3 text-sm font-medium border-2 hover:border-primary hover:shadow-soft transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                style={{ animationDelay: `${300 + index * 100}ms` }}
+              >
+                <span className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-primary/20" />
+                  {option}
+                </span>
+              </Button>
+            ))}
+          </div>
+        )}
+        
+        <p className="text-xs text-muted-foreground mt-2 opacity-70">
+          {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </p>
+      </div>
+    </div>
+  );
+
+  const ProcessingPanel = () => (
+    <div className="animate-fade-in-up">
+      <Card className="border-primary/20 shadow-soft bg-card/80 backdrop-blur">
+        <CardHeader className="flex flex-row items-center gap-3">
+          <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center shadow-soft">
+            <Loader2 className="w-5 h-5 text-primary-foreground animate-spin" />
+          </div>
+          <div>
+            <CardTitle className="text-lg">Generating your AI persona</CardTitle>
+            <p className="text-sm text-muted-foreground">Analyzing answers, defining traits, and preparing your report.</p>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Progress value={processingProgress} className="h-2" />
+          <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+            <Badge variant="outline" className="border-primary/30 text-primary">Persona</Badge>
+            <Badge variant="outline" className="border-primary/30 text-primary">Goals</Badge>
+            <Badge variant="outline" className="border-primary/30 text-primary">Compatibility</Badge>
+          </div>
+          <div className="grid gap-2 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary" />
+              <span>Mapping your preferences to key traits</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Brain className="w-4 h-4 text-primary" />
+              <span>Synthesizing lifestyle, values, and conflict styles</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <FileText className="w-4 h-4 text-primary" />
+              <span>Building a concise report with goals and tips</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  const PersonaReport = () => {
+    if (!persona) return null;
+    return (
+      <div className="animate-fade-in-up">
+        <Card className="shadow-elevated border-primary/20">
+          <CardHeader className="space-y-2">
+            <CardTitle className="text-xl flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-primary" />
+              {persona.title}
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">{persona.subtitle}</p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <h4 className="text-sm font-semibold text-foreground">Personality signals</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                {persona.traits.map((trait, idx) => (
+                  <li key={idx} className="flex gap-2">
+                    <span className="text-primary">•</span>
+                    <span>{trait}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="space-y-2">
+              <h4 className="text-sm font-semibold text-foreground">Goals & focus</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                {persona.goals.map((goal, idx) => (
+                  <li key={idx} className="flex gap-2">
+                    <span className="text-primary">•</span>
+                    <span>{goal}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="space-y-2">
+              <h4 className="text-sm font-semibold text-foreground">Recommendations</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                {persona.recommendations.map((rec, idx) => (
+                  <li key={idx} className="flex gap-2">
+                    <span className="text-primary">•</span>
+                    <span>{rec}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="pt-2 flex flex-wrap gap-2">
+              <Badge variant="outline" className="border-primary/40 text-primary">Personality</Badge>
+              <Badge variant="outline" className="border-primary/40 text-primary">Goals</Badge>
+              <Badge variant="outline" className="border-primary/40 text-primary">Growth plan</Badge>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <Button
+                onClick={() => navigate("/dashboard")}
+                className="gradient-primary text-primary-foreground shadow-soft hover:shadow-elevated px-4"
+              >
+                Finish onboarding
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-background flex flex-col relative">
+      {/* Subtle background pattern */}
+      <div className="absolute inset-0 opacity-[0.02] pointer-events-none">
+        <div className="absolute inset-0" style={{
+          backgroundImage: `radial-gradient(circle at 1px 1px, hsl(var(--primary)) 1px, transparent 0)`,
+          backgroundSize: '20px 20px'
+        }} />
+      </div>
+      {/* Header */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
+        <div className="container mx-auto px-6 h-16 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
+              <Heart className="w-4 h-4 text-primary-foreground" />
+            </div>
+            <span className="font-serif text-xl font-semibold text-foreground">ValueSpark</span>
+          </Link>
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-muted-foreground">
+              {answeredQuestions} of {totalQuestions} completed
+            </span>
+          </div>
+        </div>
+      </header>
+
+      {/* Progress */}
+      <div className="fixed top-16 left-0 right-0 z-40">
+        <Progress value={progressPercent} className="h-1 rounded-none" />
+      </div>
+
+      {/* Chat Area */}
+      <div className="flex-1 pt-20 pb-20">
+        <div className="container mx-auto max-w-4xl px-6 h-full">
+          <ScrollArea className="h-full" ref={scrollAreaRef}>
+            <div className="space-y-6 py-6">
+              {messages.map((message) => (
+                <MessageBubble key={message.id} message={message} />
+              ))}
+              {isTyping && <TypingIndicator />}
+              {status === "processing" && <ProcessingPanel />}
+              {status === "summary" && <PersonaReport />}
+              <div ref={messagesEndRef} />
+            </div>
+          </ScrollArea>
+        </div>
+      </div>
+
+      {/* Input Area */}
+      <div className="fixed bottom-0 left-0 right-0 bg-background/90 backdrop-blur-md border-t border-border">
+        <div className="container mx-auto max-w-4xl px-6 py-4">
+          <div className="flex items-center gap-3">
+            <div className="flex-1 relative">
+              <Input
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                placeholder="Type a message or choose from the options above..."
+                className="pr-12 h-12 rounded-full border-2 focus:border-primary transition-all duration-200 focus:shadow-soft"
+                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+              />
+              <Button
+                size="sm"
+                onClick={handleSendMessage}
+                disabled={!inputValue.trim()}
+                className={cn(
+                  "absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full p-0 transition-all duration-200",
+                  inputValue.trim() 
+                    ? "gradient-primary text-primary-foreground shadow-soft hover:scale-110" 
+                    : "bg-muted text-muted-foreground"
+                )}
+              >
+                <Send className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+          <div className="text-center mt-2">
+            <p className="text-xs text-muted-foreground">
+              Choose from the options above for the best experience ✨
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ChatInterface;
