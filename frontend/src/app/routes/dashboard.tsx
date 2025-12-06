@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, X, Sparkles, ChevronLeft, ChevronRight, User, Settings, LogOut, Send, Loader2 } from "lucide-react";
+import { Search, Filter, X, Sparkles, ChevronLeft, ChevronRight, User, Settings, LogOut, Send, Loader2, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import MatchCard from "@/features/matching/components/match-card";
 import SimulationReport from "@/features/matching/components/simulation-report";
@@ -16,6 +16,9 @@ import { getCurrentUser, clearCurrentUser } from "@/lib/storage";
 import { useMatches, getMatchedUserId } from "@/features/swiping/api/use-matches";
 import { useBestieStart, useBestieReply } from "@/features/bestie/api/use-bestie";
 import { useRunSimulation, type SimulationRun } from "@/features/simulation/api/use-simulation";
+import { StatsCards } from "@/features/dashboard/components/stats-cards";
+import { ActivityFeed } from "@/features/dashboard/components/activity-feed";
+import { Separator } from "@/components/ui/separator";
 
 interface ChatMessage {
   id: string;
@@ -77,7 +80,7 @@ const Dashboard = () => {
   const [simulationResults, setSimulationResults] = useState<Record<string, SimulationRun>>({});
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
+  const [visibleCount, setVisibleCount] = useState(8);
   
   // AI Bestie state
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -296,15 +299,15 @@ const Dashboard = () => {
     match.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  const pageSize = 8;
-  const totalPages = Math.max(1, Math.ceil(filteredMatches.length / pageSize));
-  const safePage = Math.min(currentPage, totalPages);
-  const startIndex = (safePage - 1) * pageSize;
-  const paginatedMatches = filteredMatches.slice(startIndex, startIndex + pageSize);
+  const paginatedMatches = filteredMatches.slice(0, visibleCount);
 
   useEffect(() => {
-    setCurrentPage(1);
+    setVisibleCount(8);
   }, [searchQuery]);
+
+  const handleLoadMore = () => {
+    setVisibleCount((prev) => Math.min(prev + 8, filteredMatches.length));
+  };
 
   // Handle loading and error states
   if (isLoading) {
@@ -449,7 +452,7 @@ const Dashboard = () => {
         )}
 
         {/* Main Content */}
-        <main className="flex-1 p-6 lg:p-8">
+        <main className="flex-1 p-6 lg:p-8 container mx-auto max-w-7xl">
           {/* Search Bar */}
           <div className="flex items-center gap-4 mb-8">
             <Button
@@ -488,7 +491,7 @@ const Dashboard = () => {
           </div>
 
           {/* Match Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {paginatedMatches.map((match) => (
               <MatchCard
                 key={match.id}
@@ -499,29 +502,51 @@ const Dashboard = () => {
             ))}
           </div>
 
-          {/* Pagination */}
-          <div className="mt-6 flex items-center justify-end gap-4">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              disabled={safePage === 1 || filteredMatches.length === 0}
-              aria-label="Previous page"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <span className="text-sm text-muted-foreground">
-              Page {safePage} of {totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              disabled={safePage === totalPages || filteredMatches.length === 0}
-              aria-label="Next page"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </Button>
+          {/* Pagination / Load More */}
+          <div className="mt-8 flex justify-center">
+            {visibleCount < filteredMatches.length && (
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={handleLoadMore}
+                className="min-w-[200px] rounded-full"
+              >
+                Show More Matches
+                <ChevronDown className="ml-2 h-4 w-4" />
+              </Button>
+            )}
+          </div>
+
+          {/* Dashboard Widgets */}
+          <div className="mt-12 space-y-8">
+            <Separator />
+            <div>
+              <h2 className="text-xl font-semibold mb-4">Your Dating Pulse</h2>
+              <StatsCards />
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+              <ActivityFeed />
+              <div className="lg:col-span-2 space-y-6">
+                <div className="rounded-xl border bg-card text-card-foreground shadow-sm p-6">
+                  <h3 className="font-semibold mb-2">Next Steps</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Your profile is getting attention! Try updating your bio to get more quality matches.
+                  </p>
+                  <Button variant="outline" className="w-full" onClick={() => navigate("/profile")}>
+                    Edit Profile
+                  </Button>
+                </div>
+                <div className="rounded-xl border bg-gradient-to-br from-primary/5 to-secondary/5 p-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Sparkles className="w-4 h-4 text-primary" />
+                    <h3 className="font-semibold">Tip of the Day</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    "Ask open-ended questions to keep the conversation flowing naturally."
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </main>
 
