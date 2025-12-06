@@ -12,7 +12,7 @@ import {
   TrendingUp
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Match } from "@/pages/Dashboard";
+import type { Match } from "@/features/matching/types/match";
 
 interface SimulationReportProps {
   match: Match;

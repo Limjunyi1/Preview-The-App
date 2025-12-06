@@ -1,7 +1,6 @@
 import { Wallet, Home, MessageSquare, Shield } from "lucide-react";
-import ChatInterface from "@/components/ChatInterface";
 
-const categories = [
+export const categories = [
   {
     id: "financial",
     title: "Financial Philosophy",
@@ -84,8 +83,3 @@ const categories = [
   }
 ];
 
-const Questionnaire = () => {
-  return <ChatInterface categories={categories} />;
-};
-
-export default Questionnaire;
