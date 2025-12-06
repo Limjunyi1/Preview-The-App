@@ -1,17 +1,21 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, X, Sparkles, ChevronLeft, ChevronRight, User, Settings, LogOut, Send } from "lucide-react";
+import { Search, Filter, X, Sparkles, ChevronLeft, ChevronRight, User, Settings, LogOut, Send, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import MatchCard from "@/features/matching/components/match-card";
 import SimulationReport from "@/features/matching/components/simulation-report";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import BrandLogo from "@/components/brand-logo";
 import type { Match } from "@/features/matching/types/match";
 import { useProfiles } from "@/features/profiles/api/get-profiles";
 import type { UIProfile } from "@/features/profiles/types/ui-profile";
+import { getCurrentUser, clearCurrentUser } from "@/lib/storage";
+import { useMatches, getMatchedUserId } from "@/features/swiping/api/use-matches";
+import { useBestieStart, useBestieReply } from "@/features/bestie/api/use-bestie";
+import { useRunSimulation, type SimulationRun } from "@/features/simulation/api/use-simulation";
 
 interface ChatMessage {
   id: string;
@@ -35,52 +39,146 @@ function uiProfileToMatch(profile: UIProfile): Match {
 }
 
 const Dashboard = () => {
+  const navigate = useNavigate();
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  
+  // Get current user
+  const currentUser = getCurrentUser();
+  
+  // Redirect if not logged in
+  useEffect(() => {
+    if (!currentUser) {
+      navigate("/login");
+    }
+  }, [currentUser, navigate]);
+
+  // Fetch all profiles for display
   const { data: profiles, isLoading, error } = useProfiles();
-  const [matches, setMatches] = useState<Match[]>([]);
+  
+  // Fetch user's matches from localStorage
+  const { data: userMatches } = useMatches(currentUser);
+  
+  // State for match cards (combines profiles + match status)
+  const [matchCards, setMatchCards] = useState<Match[]>([]);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
+  // Store simulation results for future use in enhanced report view
+  const [_simulationResult, setSimulationResult] = useState<SimulationRun | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  
+  // AI Bestie state
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState("");
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    {
-      id: "bot-1",
-      sender: "bot",
-      text: "Hi! I'm Ur AI Bestie. I can suggest matches, queue a swipe session, or answer quick questions."
-    },
-    {
-      id: "bot-2",
-      sender: "bot",
-      text: 'Try asking "Who should I simulate next?" or tap Swipe to jump in.'
-    }
-  ]);
-  const navigate = useNavigate();
+  const [bestieSessionId, setBestieSessionId] = useState<string | null>(null);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [isBestieTyping, setIsBestieTyping] = useState(false);
 
-  // Initialize matches from real profile data when loaded
+  // API hooks
+  const bestieStartMutation = useBestieStart();
+  const bestieReplyMutation = useBestieReply();
+  const runSimulationMutation = useRunSimulation();
+
+  // Initialize match cards from profiles (show matched profiles first)
   useEffect(() => {
-    if (profiles && profiles.length > 0 && matches.length === 0) {
-      setMatches(profiles.map(uiProfileToMatch));
+    if (profiles && profiles.length > 0 && currentUser) {
+      const matchedUserIds = new Set(
+        userMatches?.map((m) => getMatchedUserId(m, currentUser)) ?? []
+      );
+      
+      const cards = profiles.map((profile) => ({
+        ...uiProfileToMatch(profile),
+        status: matchedUserIds.has(profile.id) ? "idle" as const : "idle" as const,
+      }));
+      
+      // Sort: matched profiles first
+      cards.sort((a, b) => {
+        const aMatched = matchedUserIds.has(a.id) ? 1 : 0;
+        const bMatched = matchedUserIds.has(b.id) ? 1 : 0;
+        return bMatched - aMatched;
+      });
+      
+      setMatchCards(cards);
     }
-  }, [profiles, matches.length]);
+  }, [profiles, userMatches, currentUser]);
+
+  // Scroll chat to bottom when messages change
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages]);
+
+  // Start AI Bestie session when chat opens
+  useEffect(() => {
+    if (isChatOpen && !bestieSessionId && currentUser && !bestieStartMutation.isPending) {
+      bestieStartMutation.mutate(
+        { userId: currentUser },
+        {
+          onSuccess: (data) => {
+            setBestieSessionId(data.session_id);
+            setChatMessages([
+              {
+                id: `bot-${Date.now()}`,
+                sender: "bot",
+                text: data.opening_text,
+              },
+            ]);
+          },
+          onError: () => {
+            setChatMessages([
+              {
+                id: `bot-${Date.now()}`,
+                sender: "bot",
+                text: "Hi! I'm your AI Bestie. I can suggest matches or answer questions about dating. (Backend unavailable - running in offline mode)",
+              },
+            ]);
+          },
+        }
+      );
+    }
+  }, [isChatOpen, bestieSessionId, currentUser, bestieStartMutation]);
 
   const handleRunSimulation = (matchId: string) => {
-    setMatches(prev => 
-      prev.map(m => 
+    if (!currentUser) return;
+    
+    setMatchCards((prev) =>
+      prev.map((m) =>
         m.id === matchId ? { ...m, status: "simulating" as const } : m
       )
     );
 
-    // Simulate the AI processing
-    setTimeout(() => {
-      setMatches(prev =>
-        prev.map(m =>
-          m.id === matchId
-            ? { ...m, status: "completed" as const, compatibilityScore: Math.floor(Math.random() * 30) + 65 }
-            : m
-        )
-      );
-    }, 4000);
+    runSimulationMutation.mutate(
+      { userA: currentUser, userB: matchId },
+      {
+        onSuccess: (result) => {
+          setMatchCards((prev) =>
+            prev.map((m) =>
+              m.id === matchId
+                ? {
+                    ...m,
+                    status: "completed" as const,
+                    compatibilityScore: result.compatibility_score,
+                  }
+                : m
+            )
+          );
+          setSimulationResult(result);
+        },
+        onError: () => {
+          // Fallback to random score if backend unavailable
+          setMatchCards((prev) =>
+            prev.map((m) =>
+              m.id === matchId
+                ? {
+                    ...m,
+                    status: "completed" as const,
+                    compatibilityScore: Math.floor(Math.random() * 30) + 65,
+                  }
+                : m
+            )
+          );
+        },
+      }
+    );
   };
 
   const handleViewReport = (match: Match) => {
@@ -96,49 +194,87 @@ const Dashboard = () => {
     const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
       sender: "user",
-      text: nextMessage
+      text: nextMessage,
     };
 
-    setChatMessages(prev => [...prev, userMessage]);
+    setChatMessages((prev) => [...prev, userMessage]);
     setChatInput("");
 
-    setTimeout(() => {
-      setChatMessages(prev => [
-        ...prev,
+    // Send to AI Bestie if we have a session
+    if (bestieSessionId) {
+      setIsBestieTyping(true);
+      bestieReplyMutation.mutate(
+        { sessionId: bestieSessionId, message: nextMessage },
         {
-          id: `bot-${Date.now()}`,
-          sender: "bot",
-          text: "Got it! Want me to line up a swipe session or run a simulation on a match?"
+          onSuccess: (data) => {
+            setIsBestieTyping(false);
+            setChatMessages((prev) => [
+              ...prev,
+              {
+                id: `bot-${Date.now()}`,
+                sender: "bot",
+                text: data.reply,
+              },
+            ]);
+          },
+          onError: () => {
+            setIsBestieTyping(false);
+            setChatMessages((prev) => [
+              ...prev,
+              {
+                id: `bot-${Date.now()}`,
+                sender: "bot",
+                text: "Sorry, I couldn't process that. Want to try swiping instead?",
+              },
+            ]);
+          },
         }
-      ]);
-    }, 450);
+      );
+    } else {
+      // Fallback response if no session
+      setTimeout(() => {
+        setChatMessages((prev) => [
+          ...prev,
+          {
+            id: `bot-${Date.now()}`,
+            sender: "bot",
+            text: "Got it! Want me to line up a swipe session or run a simulation on a match?",
+          },
+        ]);
+      }, 450);
+    }
+  };
+
+  const handleLogout = () => {
+    clearCurrentUser();
+    navigate("/login");
   };
 
   const quickActions = [
     {
       label: "Start swiping",
-      onClick: () => navigate("/swiping")
+      onClick: () => navigate("/swiping"),
     },
     {
       label: "Run a simulation",
       onClick: () => {
         setIsChatOpen(true);
-        setChatMessages(prev => [
+        setChatMessages((prev) => [
           ...prev,
           {
             id: `bot-${Date.now()}`,
             sender: "bot",
-            text: "Tell me which match you'd like to simulate, and I'll queue it up."
-          }
+            text: "Tell me which match you'd like to simulate, and I'll queue it up.",
+          },
         ]);
-      }
-    }
+      },
+    },
   ];
 
-  const filteredMatches = matches.filter(match =>
+  const filteredMatches = matchCards.filter((match) =>
     match.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     match.occupation.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    match.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+    match.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   const pageSize = 8;
@@ -178,7 +314,7 @@ const Dashboard = () => {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
-        <div className="container mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="max-w-screen-2xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center">
             <BrandLogo className="-ml-16 scale-[0.85]" />
           </Link>
@@ -207,11 +343,12 @@ const Dashboard = () => {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link to="/login" className="flex items-center gap-2 text-destructive">
-                      <LogOut className="w-4 h-4" />
-                      <span>Logout</span>
-                    </Link>
+                  <DropdownMenuItem
+                    onClick={handleLogout}
+                    className="flex items-center gap-2 text-destructive cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Logout</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -332,7 +469,7 @@ const Dashboard = () => {
           </div>
 
           {/* Match Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 justify-items-center">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
             {paginatedMatches.map((match) => (
               <MatchCard
                 key={match.id}
@@ -402,7 +539,7 @@ const Dashboard = () => {
           </div>
 
           <div className="max-h-80 overflow-y-auto space-y-3 p-4">
-            {chatMessages.map(message => (
+            {chatMessages.map((message) => (
               <div key={message.id} className={cn("flex", message.sender === "user" ? "justify-end" : "justify-start")}>
                 <div
                   className={cn(
@@ -416,6 +553,15 @@ const Dashboard = () => {
                 </div>
               </div>
             ))}
+            {isBestieTyping && (
+              <div className="flex justify-start">
+                <div className="bg-muted text-foreground rounded-2xl rounded-bl-none px-3 py-2 text-sm shadow-sm flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Thinking...</span>
+                </div>
+              </div>
+            )}
+            <div ref={chatEndRef} />
           </div>
 
           <div className="px-4 pb-3 space-y-2">
