@@ -1,0 +1,26 @@
+# Environments
+.venv/
+env/
+venv/
+.python-version
+
+# Python caches
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+
+# Packaging / builds
+build/
+dist/
+*.egg-info/
+
+# Env/config files
+.env
+.env.*
+.DS_Store
+.vscode/
+.idea/
