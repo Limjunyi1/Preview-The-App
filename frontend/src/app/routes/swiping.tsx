@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { useSwipeProfiles } from "@/features/profiles/api/get-profiles";
 import type { SwipeProfile } from "@/features/profiles/types/swipe-profile";
 import { useRecordSwipe } from "@/features/swiping/api/use-swipes";
-import { getCurrentUser, getUnswipedProfiles } from "@/lib/storage";
+import { getCurrentUser, getUnswipedProfiles, clearSwipesForUser } from "@/lib/storage";
 
 type SwipeDirection = "left" | "right";
 
@@ -32,6 +32,7 @@ const Swiping = () => {
   const [recentMatches, setRecentMatches] = useState<Profile[]>([]);
   const [flippedId, setFlippedId] = useState<number | null>(null);
   const [showMatchCelebration, setShowMatchCelebration] = useState<Profile | null>(null);
+  const [resetNonce, setResetNonce] = useState(0);
 
   // Get current user from localStorage
   const currentUser = getCurrentUser();
@@ -60,7 +61,7 @@ const Swiping = () => {
         ...p,
         numericId: i,
       }));
-  }, [swipeProfiles, currentUser]);
+  }, [swipeProfiles, currentUser, resetNonce]);
 
   const [cards, setCards] = useState<Profile[]>(profiles);
 
@@ -94,6 +95,16 @@ const Swiping = () => {
   };
 
   const frontId = cards[cards.length - 1]?.numericId;
+
+  const handleResetDeck = () => {
+    if (!currentUser) return;
+    clearSwipesForUser(currentUser);
+    setResetNonce((n) => n + 1);
+    setCards(profiles);
+    setFlippedId(null);
+    setShowMatchCelebration(null);
+    setRecentMatches([]);
+  };
 
   // Handle loading state
   if (isLoading) {
@@ -181,7 +192,11 @@ const Swiping = () => {
               <h1 className="text-3xl font-serif font-bold text-foreground">Swipe & Preview</h1>
             </div>
           </div>
-          <div className="hidden" />
+          <div>
+            <Button variant="outline" size="sm" onClick={handleResetDeck}>
+              Reset deck
+            </Button>
+          </div>
         </div>
 
         {/* Deck */}
