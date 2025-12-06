@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Shield, Users, ArrowRight, CheckCircle } from "lucide-react";
-import BrandLogo from "@/components/BrandLogo";
+import BrandLogo from "@/components/brand-logo";
 
 const Index = () => {
   return (
