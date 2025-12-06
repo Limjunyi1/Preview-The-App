@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Play, Eye, MapPin, Briefcase, Sparkles, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
-import type { Match } from "@/pages/Dashboard";
+import type { Match } from "@/features/matching/types/match";
 
 interface MatchCardProps {
   match: Match;

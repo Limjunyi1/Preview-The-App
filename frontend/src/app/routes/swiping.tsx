@@ -1,11 +1,11 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion, useMotionValue, useTransform } from "framer-motion";
 import { Heart, Info, MapPin, ArrowLeft, Shield, Sparkles, Star, User, Settings, LogOut, X } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import BrandLogo from "@/components/BrandLogo";
+import BrandLogo from "@/components/brand-logo";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
