@@ -141,6 +141,15 @@ export function getUnswipedProfiles(userId: string, allProfileIds: string[]): st
   return allProfileIds.filter((id) => id !== userId && !swipedIds.includes(id));
 }
 
+/**
+ * Clear all swipes made by a user (used to reset the deck)
+ */
+export function clearSwipesForUser(userId: string): void {
+  const swipes = getSwipes();
+  const remaining = swipes.filter((s) => s.from !== userId);
+  localStorage.setItem(STORAGE_KEYS.SWIPES, JSON.stringify(remaining));
+}
+
 // ============================================================================
 // Matches
 // ============================================================================

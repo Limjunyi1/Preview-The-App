@@ -42,8 +42,8 @@ export function fullProfileToSwipeProfile(
   // Generate vibe from profile characteristics
   const vibe = deriveVibe(fullProfile);
   
-  // Use placeholder avatar
-  const photo = getPlaceholderAvatar(profileId);
+  // Use profile_path from JSON, fallback to placeholder
+  const photo = fullProfile.profile_path || getPlaceholderAvatar(profileId);
   
   return {
     id: profileId,
