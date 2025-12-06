@@ -29,7 +29,7 @@ from .simulation.storage import get_run, list_runs, save_run
 # Config
 # ------------------------------------------------------------------------------
 REPO_ROOT = Path(__file__).resolve().parent.parent
-PROFILE_DIR = Path(os.getenv("PROFILE_DIR", REPO_ROOT / "profiles"))
+PROFILE_DIR = Path(os.getenv("PROFILE_DIR", REPO_ROOT / "frontend" / "public" / "json"))
 MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.5-flash")
 ONBOARDING_PROMPT = str(REPO_ROOT / "Prompts" / "onboardingPrompt.yaml")
 BESTIE_PROMPT = str(REPO_ROOT / "Prompts" / "aiBestiePrompt.yaml")
