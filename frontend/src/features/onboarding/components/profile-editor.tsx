@@ -16,7 +16,8 @@ import {
   X,
   Plus,
   Loader2,
-  Check
+  Check,
+  ArrowRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { FullProfile } from "@/features/profiles/types/profile-schema";
@@ -185,10 +186,10 @@ const ProfileEditor = ({ profile, onSave, isSaving = false }: ProfileEditorProps
         <CardHeader className="space-y-2">
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-primary" />
-            <CardTitle className="text-xl">Your AI-Generated Profile</CardTitle>
+            <CardTitle className="text-xl">Almost there! Review your profile</CardTitle>
           </div>
           <CardDescription>
-            Review and customize your profile before continuing. You can always update it later.
+            Quick check - make sure everything looks good, then start swiping to find your matches!
           </CardDescription>
         </CardHeader>
 
@@ -309,31 +310,36 @@ const ProfileEditor = ({ profile, onSave, isSaving = false }: ProfileEditorProps
             />
           </Section>
 
-          {/* Save Button */}
-          <div className="pt-4 flex justify-end">
+          {/* Action Button */}
+          <div className="pt-6 flex justify-center">
             <Button
               onClick={handleSave}
               disabled={isSaving}
+              size="lg"
               className={cn(
-                "px-8 py-2 transition-all duration-200",
+                "px-10 py-6 text-lg font-semibold transition-all duration-200",
                 "bg-gradient-to-r from-primary to-primary/90",
                 "hover:from-primary/90 hover:to-primary/80",
-                "shadow-soft hover:shadow-elevated"
+                "shadow-elevated hover:shadow-2xl hover:scale-105"
               )}
             >
               {isSaving ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Saving...
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  Setting up...
                 </>
               ) : (
                 <>
-                  <Check className="w-4 h-4 mr-2" />
-                  Save & Continue
+                  <Heart className="w-5 h-5 mr-2" />
+                  Start Swiping
+                  <ArrowRight className="w-5 h-5 ml-2" />
                 </>
               )}
             </Button>
           </div>
+          <p className="text-center text-sm text-muted-foreground mt-3">
+            You can always update your profile later from settings
+          </p>
         </CardContent>
       </Card>
     </div>

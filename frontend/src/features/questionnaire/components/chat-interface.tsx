@@ -404,7 +404,7 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
               ...prev,
               {
                 id: `persona-ready-${Date.now()}`,
-                content: "Your AI persona is ready. Here's your personalized personality and goals report.",
+                content: "Perfect! I've created your profile. Take a quick look, then you're ready to start swiping! 💫",
                 sender: "ai",
                 timestamp: new Date()
               }
@@ -643,12 +643,13 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
       { userId, profile: updatedProfile },
       {
         onSuccess: () => {
-          navigate("/dashboard");
+          // Go directly to swiping so user can rank their preferences
+          navigate("/swiping");
         },
         onError: (error) => {
           console.error("Failed to save profile:", error);
           // Still navigate on error - profile was already saved during onboarding
-          navigate("/dashboard");
+          navigate("/swiping");
         },
       }
     );
