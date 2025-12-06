@@ -1,0 +1,71 @@
+{
+  "profile": {
+    "display_name": "Jason",
+    "age": 21,
+    "gender": "male",
+    "pronouns": "he/him",
+    "location": "Subang Jaya",
+    "height": "190 cm",
+    "employment_status": "student",
+    "employment_title": null,
+    "employment_industry": "Computer Science",
+    "orientation": "women"
+  },
+  "profile_path": "",
+  "relationship": {
+    "intent": null,
+    "pace_to_meet": null
+  },
+  "lifestyle": {
+    "social_energy": null,
+    "weekend_default": null,
+    "travel_style": null,
+    "work_life_balance": null,
+    "pets": null
+  },
+  "values": {
+    "family_closeness": null,
+    "money_mindset": null,
+    "openness_to_kids": null,
+    "faith_importance": null,
+    "political_engagement": null,
+    "other_values": []
+  },
+  "communication": {
+    "conflict_style": null,
+    "texting_cadence": null,
+    "love_languages": []
+  },
+  "empathy_accountability": {
+    "past_relationship_reflection": null,
+    "accountability_style": null,
+    "red_flags_detected": []
+  },
+  "dealbreakers": [],
+  "must_haves": [],
+  "agent_persona": {
+    "tone": "casual",
+    "vocabulary_style": "simple",
+    "humor_style": "none",
+    "emoji_punctuation": "occasional emoji; standard punctuation",
+    "directness": "very direct",
+    "energy_level": "chill",
+    "emotional_expressiveness": "guarded",
+    "quirks_and_phrases": [],
+    "example_messages": [
+      "im jason",
+      "2003, 22",
+      "he him",
+      "subang jaya",
+      "im 190 cm",
+      "i am a student",
+      "computer scinec",
+      "im into women",
+      "im done lets start swiping"
+    ],
+    "system_prompt_snippet": "This user is direct and uses simple, concise language. They don't use much slang or emojis, and their responses are straightforward, sometimes short. They prefer to get to the point quickly."
+  },
+  "additional_notes": "User quickly stated they were done with the intake and wanted to start swiping, indicating a preference for efficiency.",
+  "AI_summary": "Jason's a 21-year-old Computer Science student from Subang Jaya, 190 cm tall, and into women. He's pretty chill and direct in his comms, not one for a ton of chat before getting to the main event. Kinda gave the 'let's get to it' vibe, no cap.",
+  "confidence_score": "medium"
+}
