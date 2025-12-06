@@ -1,5 +1,5 @@
 <h1 align="center">
-  Preview
+  <img src="./frontend/public/icon.svg" alt="Preview logo" width="140" />
 </h1>
 
 <p align="center">
