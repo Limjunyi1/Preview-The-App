@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback, memo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,6 +44,255 @@ type PersonaSummary = {
   goals: string[];
   recommendations: string[];
 };
+
+// Extracted and memoized components to prevent re-renders
+
+const TypingIndicator = memo(() => (
+  <div className="flex items-center animate-fade-in">
+    <div className="bg-card border border-border rounded-2xl px-4 py-3 shadow-card relative overflow-hidden">
+      <div className="flex items-center gap-1">
+        <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+        <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+        <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+      </div>
+      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent animate-pulse" />
+    </div>
+  </div>
+));
+TypingIndicator.displayName = "TypingIndicator";
+
+interface MessageBubbleProps {
+  message: Message;
+  onOptionSelect: (option: string) => void;
+}
+
+const MessageBubble = memo(({ message, onOptionSelect }: MessageBubbleProps) => (
+  <div className={cn(
+    "flex animate-fade-in-up",
+    message.sender === 'user' ? "justify-end" : "justify-start"
+  )}>
+    <div className={cn(
+      "max-w-xs lg:max-w-md",
+      message.sender === 'user' ? "text-right" : "text-left"
+    )}>
+      <div className={cn(
+        "rounded-2xl px-4 py-3 shadow-card border transition-all duration-200 hover:shadow-elevated",
+        message.sender === 'user'
+          ? "bg-primary text-primary-foreground border-primary"
+          : "bg-card text-card-foreground border-border hover:border-primary/20"
+      )}>
+        <p className="text-sm font-medium leading-relaxed">{message.content}</p>
+      </div>
+      
+      {message.options && (
+        <div className="mt-3 space-y-2 animate-fade-in" style={{ animationDelay: '200ms' }}>
+          {message.options.map((option, index) => (
+            <Button
+              key={index}
+              variant="outline"
+              size="sm"
+              onClick={() => onOptionSelect(option)}
+              className="w-full text-left justify-start h-auto p-3 text-sm font-medium border-2 hover:border-primary hover:shadow-soft transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+              style={{ animationDelay: `${300 + index * 100}ms` }}
+            >
+              <span className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-primary/20" />
+                {option}
+              </span>
+            </Button>
+          ))}
+        </div>
+      )}
+      
+      <p className="text-xs text-muted-foreground mt-2 opacity-70">
+        {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+      </p>
+    </div>
+  </div>
+));
+MessageBubble.displayName = "MessageBubble";
+
+interface ProcessingPanelProps {
+  progress: number;
+}
+
+const ProcessingPanel = memo(({ progress }: ProcessingPanelProps) => (
+  <div className="animate-fade-in-up">
+    <Card className="border-primary/20 shadow-soft bg-card/80 backdrop-blur">
+      <CardHeader className="flex flex-row items-center gap-3">
+        <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center shadow-soft">
+          <Loader2 className="w-5 h-5 text-primary-foreground animate-spin" />
+        </div>
+        <div>
+          <CardTitle className="text-lg">Generating your AI persona</CardTitle>
+          <p className="text-sm text-muted-foreground">Analyzing answers, defining traits, and preparing your report.</p>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <Progress value={progress} className="h-2" />
+        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+          <Badge variant="outline" className="border-primary/30 text-primary">Persona</Badge>
+          <Badge variant="outline" className="border-primary/30 text-primary">Goals</Badge>
+          <Badge variant="outline" className="border-primary/30 text-primary">Compatibility</Badge>
+        </div>
+        <div className="grid gap-2 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-primary" />
+            <span>Mapping your preferences to key traits</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Brain className="w-4 h-4 text-primary" />
+            <span>Synthesizing lifestyle, values, and conflict styles</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <FileText className="w-4 h-4 text-primary" />
+            <span>Building a concise report with goals and tips</span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  </div>
+));
+ProcessingPanel.displayName = "ProcessingPanel";
+
+interface PersonaReportProps {
+  persona: PersonaSummary;
+  onFinish: () => void;
+}
+
+const PersonaReport = memo(({ persona, onFinish }: PersonaReportProps) => (
+  <div className="animate-fade-in-up">
+    <Card className="shadow-elevated border-primary/20">
+      <CardHeader className="space-y-2">
+        <CardTitle className="text-xl flex items-center gap-2">
+          <Sparkles className="w-5 h-5 text-primary" />
+          {persona.title}
+        </CardTitle>
+        <p className="text-sm text-muted-foreground">{persona.subtitle}</p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <h4 className="text-sm font-semibold text-foreground">Personality signals</h4>
+          <ul className="space-y-2 text-sm text-muted-foreground">
+            {persona.traits.map((trait, idx) => (
+              <li key={idx} className="flex gap-2">
+                <span className="text-primary">•</span>
+                <span>{trait}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="space-y-2">
+          <h4 className="text-sm font-semibold text-foreground">Goals & focus</h4>
+          <ul className="space-y-2 text-sm text-muted-foreground">
+            {persona.goals.map((goal, idx) => (
+              <li key={idx} className="flex gap-2">
+                <span className="text-primary">•</span>
+                <span>{goal}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="space-y-2">
+          <h4 className="text-sm font-semibold text-foreground">Recommendations</h4>
+          <ul className="space-y-2 text-sm text-muted-foreground">
+            {persona.recommendations.map((rec, idx) => (
+              <li key={idx} className="flex gap-2">
+                <span className="text-primary">•</span>
+                <span>{rec}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="pt-2 flex flex-wrap gap-2">
+          <Badge variant="outline" className="border-primary/40 text-primary">Personality</Badge>
+          <Badge variant="outline" className="border-primary/40 text-primary">Goals</Badge>
+          <Badge variant="outline" className="border-primary/40 text-primary">Growth plan</Badge>
+        </div>
+
+        <div className="pt-2 flex justify-end">
+          <Button
+            onClick={onFinish}
+            className="gradient-primary text-primary-foreground shadow-soft hover:shadow-elevated px-4"
+          >
+            Finish onboarding
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  </div>
+));
+PersonaReport.displayName = "PersonaReport";
+
+interface ChatHeaderProps {
+  answeredQuestions: number;
+  totalQuestions: number;
+}
+
+const ChatHeader = memo(({ answeredQuestions, totalQuestions }: ChatHeaderProps) => (
+  <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
+    <div className="container mx-auto px-6 h-16 flex items-center justify-between">
+      <Link to="/" className="flex items-center gap-2">
+        <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
+          <Heart className="w-4 h-4 text-primary-foreground" />
+        </div>
+        <span className="font-serif text-xl font-semibold text-foreground">ValueSpark</span>
+      </Link>
+      <div className="flex items-center gap-4">
+        <span className="text-sm text-muted-foreground">
+          {answeredQuestions} of {totalQuestions} completed
+        </span>
+      </div>
+    </div>
+  </header>
+));
+ChatHeader.displayName = "ChatHeader";
+
+interface ChatInputProps {
+  inputValue: string;
+  onInputChange: (value: string) => void;
+  onSend: () => void;
+}
+
+const ChatInput = memo(({ inputValue, onInputChange, onSend }: ChatInputProps) => (
+  <div className="fixed bottom-0 left-0 right-0 bg-background/90 backdrop-blur-md border-t border-border">
+    <div className="container mx-auto max-w-4xl px-6 py-4">
+      <div className="flex items-center gap-3">
+        <div className="flex-1 relative">
+          <Input
+            value={inputValue}
+            onChange={(e) => onInputChange(e.target.value)}
+            placeholder="Type a message or choose from the options above..."
+            className="pr-12 h-12 rounded-full border-2 focus:border-primary transition-all duration-200 focus:shadow-soft"
+            onKeyPress={(e) => e.key === 'Enter' && onSend()}
+          />
+          <Button
+            size="sm"
+            onClick={onSend}
+            disabled={!inputValue.trim()}
+            className={cn(
+              "absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full p-0 transition-all duration-200",
+              inputValue.trim() 
+                ? "gradient-primary text-primary-foreground shadow-soft hover:scale-110" 
+                : "bg-muted text-muted-foreground"
+            )}
+          >
+            <Send className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+      <div className="text-center mt-2">
+        <p className="text-xs text-muted-foreground">
+          Choose from the options above for the best experience ✨
+        </p>
+      </div>
+    </div>
+  </div>
+));
+ChatInput.displayName = "ChatInput";
 
 const ChatInterface = ({ categories }: ChatInterfaceProps) => {
   const navigate = useNavigate();
@@ -149,7 +398,7 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
     });
   };
 
-  const buildPersonaSummary = (): PersonaSummary => {
+  const buildPersonaSummary = useCallback((): PersonaSummary => {
     const pick = (catId: string, questionIndex: number) =>
       answers[`${catId}-${questionIndex}`] ?? "—";
 
@@ -173,9 +422,9 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
         "Use conflict scripts: lead with needs, name feelings, propose one actionable next step"
       ]
     };
-  };
+  }, [answers]);
 
-  const startProcessing = () => {
+  const startProcessing = useCallback(() => {
     if (status === "processing" || status === "summary") return;
 
     setStatus("processing");
@@ -184,7 +433,7 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
 
     const processingMessage: Message = {
       id: `processing-${Date.now()}`,
-      content: "Great work! I’m processing your responses to craft an AI persona and a concise report.",
+      content: "Great work! I'm processing your responses to craft an AI persona and a concise report.",
       sender: "ai",
       timestamp: new Date()
     };
@@ -208,7 +457,7 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
               ...prev,
               {
                 id: `persona-ready-${Date.now()}`,
-                content: "Your AI persona is ready. Here’s your personalized personality and goals report.",
+                content: "Your AI persona is ready. Here's your personalized personality and goals report.",
                 sender: "ai",
                 timestamp: new Date()
               }
@@ -217,9 +466,12 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
         }
       }, step.delay);
     });
-  };
+  }, [status, buildPersonaSummary]);
 
-  const askQuestion = (categoryIndex = currentCategoryIndex, questionIndex = currentQuestionIndex) => {
+  // Use ref to hold askQuestion to avoid circular dependency in useCallback
+  const askQuestionRef = useRef<(categoryIndex?: number, questionIndex?: number) => void>(() => {});
+  
+  const askQuestion = useCallback((categoryIndex = currentCategoryIndex, questionIndex = currentQuestionIndex) => {
     if (categoryIndex >= categories.length) {
       startProcessing();
       return;
@@ -275,9 +527,12 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
         setMessages(prev => [...prev, questionMessage]);
       }, 800);
     }
-  };
+  }, [categories, currentCategoryIndex, currentQuestionIndex, startProcessing]);
+  
+  // Keep ref updated
+  askQuestionRef.current = askQuestion;
 
-  const handleOptionSelect = (option: string) => {
+  const handleOptionSelect = useCallback((option: string) => {
     if (status !== "chat") return;
 
     // Add user's response
@@ -374,12 +629,13 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
     }
     
     // Ask next question or start processing after a short delay
+    // Use ref to always get latest askQuestion without causing re-renders
     setTimeout(() => {
-      askQuestion(nextCategoryIndex, nextQuestionIndex);
+      askQuestionRef.current(nextCategoryIndex, nextQuestionIndex);
     }, 900);
-  };
+  }, [status, useBackend, sessionId, onboardingReplyMutation, categories, currentCategoryIndex, currentQuestionIndex]);
 
-  const handleSendMessage = () => {
+  const handleSendMessage = useCallback(() => {
     if (!inputValue.trim()) return;
     
     const userMessage: Message = {
@@ -462,172 +718,15 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
         setMessages(prev => [...prev, aiMessage]);
       }, 1500);
     }
-  };
+  }, [inputValue, useBackend, sessionId, onboardingReplyMutation]);
 
-  const TypingIndicator = () => (
-    <div className="flex items-center animate-fade-in">
-      <div className="bg-card border border-border rounded-2xl px-4 py-3 shadow-card relative overflow-hidden">
-        <div className="flex items-center gap-1">
-          <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-          <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-          <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-        </div>
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent animate-pulse" />
-      </div>
-    </div>
-  );
+  const handleInputChange = useCallback((value: string) => {
+    setInputValue(value);
+  }, []);
 
-  const MessageBubble = ({ message }: { message: Message }) => (
-    <div className={cn(
-      "flex animate-fade-in-up",
-      message.sender === 'user' ? "justify-end" : "justify-start"
-    )}>
-      <div className={cn(
-        "max-w-xs lg:max-w-md",
-        message.sender === 'user' ? "text-right" : "text-left"
-      )}>
-        <div className={cn(
-          "rounded-2xl px-4 py-3 shadow-card border transition-all duration-200 hover:shadow-elevated",
-          message.sender === 'user'
-            ? "bg-primary text-primary-foreground border-primary"
-            : "bg-card text-card-foreground border-border hover:border-primary/20"
-        )}>
-          <p className="text-sm font-medium leading-relaxed">{message.content}</p>
-        </div>
-        
-        {message.options && (
-          <div className="mt-3 space-y-2 animate-fade-in" style={{ animationDelay: '200ms' }}>
-            {message.options.map((option, index) => (
-              <Button
-                key={index}
-                variant="outline"
-                size="sm"
-                onClick={() => handleOptionSelect(option)}
-                className="w-full text-left justify-start h-auto p-3 text-sm font-medium border-2 hover:border-primary hover:shadow-soft transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-                style={{ animationDelay: `${300 + index * 100}ms` }}
-              >
-                <span className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-primary/20" />
-                  {option}
-                </span>
-              </Button>
-            ))}
-          </div>
-        )}
-        
-        <p className="text-xs text-muted-foreground mt-2 opacity-70">
-          {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-        </p>
-      </div>
-    </div>
-  );
-
-  const ProcessingPanel = () => (
-    <div className="animate-fade-in-up">
-      <Card className="border-primary/20 shadow-soft bg-card/80 backdrop-blur">
-        <CardHeader className="flex flex-row items-center gap-3">
-          <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center shadow-soft">
-            <Loader2 className="w-5 h-5 text-primary-foreground animate-spin" />
-          </div>
-          <div>
-            <CardTitle className="text-lg">Generating your AI persona</CardTitle>
-            <p className="text-sm text-muted-foreground">Analyzing answers, defining traits, and preparing your report.</p>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Progress value={processingProgress} className="h-2" />
-          <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-            <Badge variant="outline" className="border-primary/30 text-primary">Persona</Badge>
-            <Badge variant="outline" className="border-primary/30 text-primary">Goals</Badge>
-            <Badge variant="outline" className="border-primary/30 text-primary">Compatibility</Badge>
-          </div>
-          <div className="grid gap-2 text-sm text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-primary" />
-              <span>Mapping your preferences to key traits</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Brain className="w-4 h-4 text-primary" />
-              <span>Synthesizing lifestyle, values, and conflict styles</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <FileText className="w-4 h-4 text-primary" />
-              <span>Building a concise report with goals and tips</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-
-  const PersonaReport = () => {
-    if (!persona) return null;
-    return (
-      <div className="animate-fade-in-up">
-        <Card className="shadow-elevated border-primary/20">
-          <CardHeader className="space-y-2">
-            <CardTitle className="text-xl flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-primary" />
-              {persona.title}
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">{persona.subtitle}</p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <h4 className="text-sm font-semibold text-foreground">Personality signals</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                {persona.traits.map((trait, idx) => (
-                  <li key={idx} className="flex gap-2">
-                    <span className="text-primary">•</span>
-                    <span>{trait}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="space-y-2">
-              <h4 className="text-sm font-semibold text-foreground">Goals & focus</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                {persona.goals.map((goal, idx) => (
-                  <li key={idx} className="flex gap-2">
-                    <span className="text-primary">•</span>
-                    <span>{goal}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="space-y-2">
-              <h4 className="text-sm font-semibold text-foreground">Recommendations</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                {persona.recommendations.map((rec, idx) => (
-                  <li key={idx} className="flex gap-2">
-                    <span className="text-primary">•</span>
-                    <span>{rec}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="pt-2 flex flex-wrap gap-2">
-              <Badge variant="outline" className="border-primary/40 text-primary">Personality</Badge>
-              <Badge variant="outline" className="border-primary/40 text-primary">Goals</Badge>
-              <Badge variant="outline" className="border-primary/40 text-primary">Growth plan</Badge>
-            </div>
-
-            <div className="pt-2 flex justify-end">
-              <Button
-                onClick={() => navigate("/dashboard")}
-                className="gradient-primary text-primary-foreground shadow-soft hover:shadow-elevated px-4"
-              >
-                Finish onboarding
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  };
+  const handleFinish = useCallback(() => {
+    navigate("/dashboard");
+  }, [navigate]);
 
   return (
     <div className="min-h-screen bg-background flex flex-col relative">
@@ -638,22 +737,9 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
           backgroundSize: '20px 20px'
         }} />
       </div>
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
-        <div className="container mx-auto px-6 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
-              <Heart className="w-4 h-4 text-primary-foreground" />
-            </div>
-            <span className="font-serif text-xl font-semibold text-foreground">ValueSpark</span>
-          </Link>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">
-              {answeredQuestions} of {totalQuestions} completed
-            </span>
-          </div>
-        </div>
-      </header>
+      
+      {/* Header - memoized */}
+      <ChatHeader answeredQuestions={answeredQuestions} totalQuestions={totalQuestions} />
 
       {/* Progress */}
       <div className="fixed top-16 left-0 right-0 z-40">
@@ -666,51 +752,29 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
           <ScrollArea className="h-full" ref={scrollAreaRef}>
             <div className="space-y-6 py-6">
               {messages.map((message) => (
-                <MessageBubble key={message.id} message={message} />
+                <MessageBubble 
+                  key={message.id} 
+                  message={message} 
+                  onOptionSelect={handleOptionSelect}
+                />
               ))}
               {isTyping && <TypingIndicator />}
-              {status === "processing" && <ProcessingPanel />}
-              {status === "summary" && <PersonaReport />}
+              {status === "processing" && <ProcessingPanel progress={processingProgress} />}
+              {status === "summary" && persona && (
+                <PersonaReport persona={persona} onFinish={handleFinish} />
+              )}
               <div ref={messagesEndRef} />
             </div>
           </ScrollArea>
         </div>
       </div>
 
-      {/* Input Area */}
-      <div className="fixed bottom-0 left-0 right-0 bg-background/90 backdrop-blur-md border-t border-border">
-        <div className="container mx-auto max-w-4xl px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex-1 relative">
-              <Input
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                placeholder="Type a message or choose from the options above..."
-                className="pr-12 h-12 rounded-full border-2 focus:border-primary transition-all duration-200 focus:shadow-soft"
-                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-              />
-              <Button
-                size="sm"
-                onClick={handleSendMessage}
-                disabled={!inputValue.trim()}
-                className={cn(
-                  "absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full p-0 transition-all duration-200",
-                  inputValue.trim() 
-                    ? "gradient-primary text-primary-foreground shadow-soft hover:scale-110" 
-                    : "bg-muted text-muted-foreground"
-                )}
-              >
-                <Send className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-          <div className="text-center mt-2">
-            <p className="text-xs text-muted-foreground">
-              Choose from the options above for the best experience ✨
-            </p>
-          </div>
-        </div>
-      </div>
+      {/* Input Area - memoized */}
+      <ChatInput 
+        inputValue={inputValue}
+        onInputChange={handleInputChange}
+        onSend={handleSendMessage}
+      />
     </div>
   );
 };
