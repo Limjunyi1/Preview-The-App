@@ -13,7 +13,7 @@ from uuid import uuid4
 
 import sounddevice as sd
 import soundfile as sf
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from openai import OpenAI
 from pydantic import BaseModel, Field
@@ -199,6 +199,12 @@ class TranscribeStopRequest(BaseModel):
 
 
 class TranscribeStopResponse(BaseModel):
+    transcript: str
+    duration_seconds: Optional[float] = None
+    message: str = "transcription complete"
+
+
+class TranscribeUploadResponse(BaseModel):
     transcript: str
     duration_seconds: Optional[float] = None
     message: str = "transcription complete"
@@ -538,6 +544,18 @@ def _estimate_duration_seconds(path: Path, samplerate: int) -> Optional[float]:
         return None
 
 
+def _save_upload_to_temp(upload: UploadFile) -> Path:
+    """
+    Persist an uploaded audio file to a temporary location for transcription.
+    """
+    suffix = Path(upload.filename or "upload").suffix or ".wav"
+    tmp_fd, tmp_path_str = tempfile.mkstemp(prefix="dd_upload_", suffix=suffix)
+    tmp_path = Path(tmp_path_str)
+    with os.fdopen(tmp_fd, "wb") as tmp_file:
+        tmp_file.write(upload.file.read())
+    return tmp_path
+
+
 @app.post("/transcribe/start", response_model=TranscribeStartResponse)
 def transcribe_start(body: TranscribeStartRequest | None = None) -> TranscribeStartResponse:
     samplerate = body.samplerate if body and body.samplerate else TRANSCRIBE_SAMPLE_RATE
@@ -561,6 +579,31 @@ def transcribe_stop(body: TranscribeStopRequest) -> TranscribeStopResponse:
     except Exception:
         pass
     return TranscribeStopResponse(transcript=transcript, duration_seconds=duration)
+
+
+@app.post("/transcribe/upload", response_model=TranscribeUploadResponse)
+async def transcribe_upload(
+    file: UploadFile = File(..., description="Audio file to transcribe"),
+    model: Optional[str] = None,
+    prompt: Optional[str] = None,
+) -> TranscribeUploadResponse:
+    """
+    Transcribe an uploaded audio clip (e.g., from browser MediaRecorder).
+    """
+    if not file:
+        raise HTTPException(status_code=400, detail="No file provided")
+
+    tmp_path = _save_upload_to_temp(file)
+    model_name = model or TRANSCRIBE_MODEL
+    try:
+        transcript = _transcribe_file_openai(tmp_path, model=model_name, prompt=prompt or "")
+        duration = _estimate_duration_seconds(tmp_path, samplerate=TRANSCRIBE_SAMPLE_RATE)
+        return TranscribeUploadResponse(transcript=transcript, duration_seconds=duration)
+    finally:
+        try:
+            tmp_path.unlink(missing_ok=True)
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":

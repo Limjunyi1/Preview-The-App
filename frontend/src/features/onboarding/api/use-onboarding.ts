@@ -34,6 +34,12 @@ type OnboardingFinalizeResponse = {
   persona_json: Record<string, unknown>;
 };
 
+type TranscribeUploadResponse = {
+  transcript: string;
+  duration_seconds?: number | null;
+  message?: string;
+};
+
 // ============================================================================
 // Hooks
 // ============================================================================
@@ -91,6 +97,25 @@ export function useOnboardingFinalize() {
   });
 }
 
+/**
+ * Mutation hook to transcribe an uploaded audio blob (browser MediaRecorder)
+ */
+export function useTranscribeUpload() {
+  return useMutation<TranscribeUploadResponse, Error, { file: Blob; model?: string; prompt?: string }>({
+    mutationFn: async ({ file, model, prompt }) => {
+      const formData = new FormData();
+      formData.append("file", file, "recording.webm");
+      if (model) formData.append("model", model);
+      if (prompt) formData.append("prompt", prompt);
+
+      return apiFetch<TranscribeUploadResponse>("/transcribe/upload", {
+        method: "POST",
+        body: formData,
+      });
+    },
+  });
+}
+
 export type {
   OnboardingStartRequest,
   OnboardingStartResponse,
@@ -98,5 +123,6 @@ export type {
   OnboardingReplyResponse,
   OnboardingFinalizeRequest,
   OnboardingFinalizeResponse,
+  TranscribeUploadResponse,
 };
 

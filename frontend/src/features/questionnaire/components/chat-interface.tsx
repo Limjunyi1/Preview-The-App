@@ -6,12 +6,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Heart, Send, Sparkles, Brain, FileText, Loader2 } from "lucide-react";
+import { Heart, Send, Sparkles, Brain, FileText, Loader2, Mic, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getCurrentUser, setCurrentUser } from "@/lib/storage";
 import {
   useOnboardingStart,
   useOnboardingReply,
+  useTranscribeUpload,
 } from "@/features/onboarding/api/use-onboarding";
 
 interface Message {
@@ -255,12 +256,26 @@ interface ChatInputProps {
   inputValue: string;
   onInputChange: (value: string) => void;
   onSend: () => void;
+  onStartRecording: () => void;
+  onStopRecording: () => void;
+  isRecording: boolean;
+  isTranscribing: boolean;
 }
 
-const ChatInput = memo(({ inputValue, onInputChange, onSend }: ChatInputProps) => (
+const ChatInput = memo(({ inputValue, onInputChange, onSend, onStartRecording, onStopRecording, isRecording, isTranscribing }: ChatInputProps) => (
   <div className="fixed bottom-0 left-0 right-0 bg-background/90 backdrop-blur-md border-t border-border">
     <div className="container mx-auto max-w-4xl px-6 py-4">
       <div className="flex items-center gap-3">
+        <Button
+          variant={isRecording ? "destructive" : "outline"}
+          size="icon"
+          onClick={isRecording ? onStopRecording : onStartRecording}
+          disabled={isTranscribing}
+          aria-label={isRecording ? "Stop voice recording" : "Start voice recording"}
+          className="h-12 w-12 rounded-full"
+        >
+          {isRecording ? <Square className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+        </Button>
         <div className="flex-1 relative">
           <Input
             value={inputValue}
@@ -284,10 +299,14 @@ const ChatInput = memo(({ inputValue, onInputChange, onSend }: ChatInputProps) =
           </Button>
         </div>
       </div>
-      <div className="text-center mt-2">
-        <p className="text-xs text-muted-foreground">
-          Choose from the options above for the best experience ✨
-        </p>
+      <div className="text-center mt-2 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+        {isRecording ? (
+          <span className="text-destructive font-medium">Recording... tap stop when done.</span>
+        ) : isTranscribing ? (
+          <span className="flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Transcribing your voice...</span>
+        ) : (
+          <p>Choose from the options above for the best experience ✨</p>
+        )}
       </div>
     </div>
   </div>
@@ -307,6 +326,10 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
   const [persona, setPersona] = useState<PersonaSummary | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaChunksRef = useRef<BlobPart[]>([]);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
 
   // Backend integration state
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -316,6 +339,7 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
   // API hooks
   const onboardingStartMutation = useOnboardingStart();
   const onboardingReplyMutation = useOnboardingReply();
+  const transcribeUploadMutation = useTranscribeUpload();
 
   const totalQuestions = categories.reduce((acc, cat) => acc + cat.questions.length, 0);
   const answeredQuestions = Object.keys(answers).length;
@@ -623,20 +647,20 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
     }, 900);
   }, [status, useBackend, sessionId, onboardingReplyMutation, categories, currentCategoryIndex, currentQuestionIndex]);
 
-  const handleSendMessage = useCallback(() => {
-    if (!inputValue.trim()) return;
-    
+  const sendMessage = useCallback((rawText: string) => {
+    const messageText = rawText.trim();
+    if (!messageText) return;
+
     const userMessage: Message = {
       id: `user-${Date.now()}`,
-      content: inputValue,
+      content: messageText,
       sender: 'user',
       timestamp: new Date(),
     };
-    
+
     setMessages(prev => [...prev, userMessage]);
-    const messageText = inputValue;
     setInputValue("");
-    
+
     // Use backend if we have a session
     if (useBackend && sessionId) {
       setIsTyping(true);
@@ -693,7 +717,120 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
         setMessages(prev => [...prev, aiMessage]);
       }, 1500);
     }
-  }, [inputValue, useBackend, sessionId, onboardingReplyMutation]);
+  }, [useBackend, sessionId, onboardingReplyMutation, navigate]);
+
+  const handleSendMessage = useCallback(() => {
+    sendMessage(inputValue);
+  }, [inputValue, sendMessage]);
+
+  const stopMediaStream = (recorder: MediaRecorder | null) => {
+    try {
+      recorder?.stream?.getTracks().forEach((track) => track.stop());
+    } catch (err) {
+      console.error("Failed to stop media tracks", err);
+    }
+  };
+
+  const startRecording = useCallback(async () => {
+    if (isRecording || isTranscribing) return;
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setMessages(prev => [
+        ...prev,
+        {
+          id: `ai-${Date.now()}`,
+          content: "Voice input isn't available in this browser. Try typing instead.",
+          sender: "ai",
+          timestamp: new Date(),
+        },
+      ]);
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : undefined;
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+
+      mediaChunksRef.current = [];
+      recorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          mediaChunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onstop = async () => {
+        stopMediaStream(recorder);
+        setIsRecording(false);
+        const blob = new Blob(mediaChunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        mediaChunksRef.current = [];
+
+        setIsTranscribing(true);
+        try {
+          const resp = await transcribeUploadMutation.mutateAsync({ file: blob });
+          const transcript = resp.transcript?.trim();
+          if (transcript) {
+            sendMessage(transcript);
+          } else {
+            setMessages(prev => [
+              ...prev,
+              {
+                id: `ai-${Date.now()}`,
+                content: "I couldn't hear that clearly. Want to try again?",
+                sender: "ai",
+                timestamp: new Date(),
+              },
+            ]);
+          }
+        } catch (error) {
+          setMessages(prev => [
+            ...prev,
+            {
+              id: `ai-${Date.now()}`,
+              content: "Voice transcription failed. Please try again or type your answer.",
+              sender: "ai",
+              timestamp: new Date(),
+            },
+          ]);
+        } finally {
+          setIsTranscribing(false);
+        }
+      };
+
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+      setIsRecording(true);
+    } catch (error) {
+      setIsRecording(false);
+      setMessages(prev => [
+        ...prev,
+        {
+          id: `ai-${Date.now()}`,
+          content: "I couldn't access the microphone. Check permissions and try again.",
+          sender: "ai",
+          timestamp: new Date(),
+        },
+      ]);
+    }
+  }, [isRecording, isTranscribing, transcribeUploadMutation, sendMessage]);
+
+  const stopRecording = useCallback(() => {
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== "inactive") {
+      recorder.stop();
+    }
+    stopMediaStream(recorder);
+    mediaRecorderRef.current = null;
+    setIsRecording(false);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
+      stopMediaStream(mediaRecorderRef.current);
+    };
+  }, []);
 
   const handleInputChange = useCallback((value: string) => {
     setInputValue(value);
@@ -749,6 +886,10 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
         inputValue={inputValue}
         onInputChange={handleInputChange}
         onSend={handleSendMessage}
+        onStartRecording={startRecording}
+        onStopRecording={stopRecording}
+        isRecording={isRecording}
+        isTranscribing={isTranscribing || transcribeUploadMutation.isPending}
       />
     </div>
   );
