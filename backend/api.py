@@ -1,14 +1,20 @@
 from __future__ import annotations
 
 import json
+import queue
 import os
 import re
 import time
+import threading
+import tempfile
 from pathlib import Path
 from typing import Optional
 from uuid import uuid4
 
+import sounddevice as sd
+import soundfile as sf
 from fastapi import FastAPI, HTTPException
+from openai import OpenAI
 from pydantic import BaseModel, Field
 
 from .ai_bestie import AIBestie
@@ -26,6 +32,9 @@ PROFILE_DIR = Path(os.getenv("PROFILE_DIR", REPO_ROOT / "profiles"))
 MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.5-flash")
 ONBOARDING_PROMPT = str(REPO_ROOT / "Prompts" / "onboardingPrompt.yaml")
 BESTIE_PROMPT = str(REPO_ROOT / "Prompts" / "aiBestiePrompt.yaml")
+TRANSCRIBE_MODEL = os.getenv("TRANSCRIBE_MODEL", "gpt-4o-mini-transcribe")
+TRANSCRIBE_SAMPLE_RATE = int(os.getenv("TRANSCRIBE_SAMPLE_RATE", "16000"))
+TRANSCRIBE_CHANNELS = int(os.getenv("TRANSCRIBE_CHANNELS", "1"))
 
 # ------------------------------------------------------------------------------
 # Utilities
@@ -160,11 +169,37 @@ class HealthOut(BaseModel):
     uptime_seconds: float
 
 
+class TranscribeStartRequest(BaseModel):
+    samplerate: Optional[int] = Field(None, description="Sample rate Hz")
+    channels: Optional[int] = Field(None, description="Number of channels (1=mono)")
+
+
+class TranscribeStartResponse(BaseModel):
+    session_id: str
+    samplerate: int
+    channels: int
+    message: str = "recording started"
+
+
+class TranscribeStopRequest(BaseModel):
+    session_id: str
+    model: Optional[str] = Field(None, description="Override OpenAI model for transcription")
+    prompt: Optional[str] = Field(None, description="Optional transcription prompt")
+
+
+class TranscribeStopResponse(BaseModel):
+    transcript: str
+    duration_seconds: Optional[float] = None
+    message: str = "transcription complete"
+
+
 # ------------------------------------------------------------------------------
 # Session stores
 # ------------------------------------------------------------------------------
 onboarding_sessions: dict[str, dict] = {}
 bestie_sessions: dict[str, dict] = {}
+recording_session: dict[str, dict] = {}
+recording_lock = threading.Lock()
 APP_START = time.time()
 
 # ------------------------------------------------------------------------------
@@ -352,6 +387,146 @@ def simulate_by_user(body: SimulateByUserRequest) -> SimulationRun:
     run = run_simulation(req, model_name=MODEL_NAME)
     save_run(run)
     return run
+
+
+# ------------------------------------------------------------------------------
+# Live mic transcription (OpenAI)
+# ------------------------------------------------------------------------------
+
+
+def _ensure_no_active_recording() -> None:
+    with recording_lock:
+        if recording_session:
+            raise HTTPException(status_code=409, detail="A recording session is already active")
+
+
+def _start_mic_recording(samplerate: int, channels: int) -> tuple[str, Path]:
+    """
+    Start non-blocking microphone recording on the server machine.
+    """
+    _ensure_no_active_recording()
+
+    session_id = str(uuid4())
+    output_path = Path(tempfile.gettempdir()) / f"dd_recording_{session_id}.wav"
+    q: queue.Queue = queue.Queue()
+    stop_event = threading.Event()
+
+    def audio_callback(indata, frames, time_info, status):  # type: ignore[override]
+        if status:
+            # Log to stderr to avoid breaking the stream
+            print(f"Recording status: {status}")
+        q.put(indata.copy())
+
+    def writer():
+        with sf.SoundFile(
+            output_path,
+            mode="w",
+            samplerate=samplerate,
+            channels=channels,
+            subtype="PCM_16",
+        ) as audio_file:
+            with sd.InputStream(
+                samplerate=samplerate,
+                channels=channels,
+                dtype="int16",
+                callback=audio_callback,
+            ):
+                while not stop_event.is_set():
+                    try:
+                        data = q.get(timeout=0.1)
+                    except queue.Empty:
+                        continue
+                    audio_file.write(data)
+
+                # Drain any remaining audio after stop
+                while not q.empty():
+                    audio_file.write(q.get())
+
+    t = threading.Thread(target=writer, daemon=True)
+    t.start()
+
+    with recording_lock:
+        recording_session.clear()
+        recording_session.update(
+            {
+                "session_id": session_id,
+                "stop_event": stop_event,
+                "thread": t,
+                "path": output_path,
+                "samplerate": samplerate,
+                "channels": channels,
+            }
+        )
+    return session_id, output_path
+
+
+def _stop_mic_recording(session_id: str) -> Path:
+    with recording_lock:
+        sess = recording_session.copy()
+    if not sess or sess.get("session_id") != session_id:
+        raise HTTPException(status_code=404, detail="Recording session not found")
+
+    stop_event: threading.Event = sess["stop_event"]
+    thread: threading.Thread = sess["thread"]
+    stop_event.set()
+    thread.join(timeout=5)
+
+    with recording_lock:
+        recording_session.clear()
+
+    path: Path = sess["path"]
+    if not path.exists():
+        raise HTTPException(status_code=500, detail="Recorded file missing")
+    return path
+
+
+def _transcribe_file_openai(file_path: Path, model: str, prompt: str | None = None) -> str:
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="OPENAI_API_KEY is not set")
+    client = OpenAI(api_key=api_key)
+    with open(file_path, "rb") as audio_file:
+        resp = client.audio.transcriptions.create(
+            model=model,
+            file=audio_file,
+            prompt=prompt or None,
+        )
+    return getattr(resp, "text", "") or ""
+
+
+def _estimate_duration_seconds(path: Path, samplerate: int) -> Optional[float]:
+    try:
+        with sf.SoundFile(path, "r") as f:
+            frames = len(f)
+            rate = f.samplerate or samplerate
+            return frames / float(rate) if rate else None
+    except Exception:
+        return None
+
+
+@app.post("/transcribe/start", response_model=TranscribeStartResponse)
+def transcribe_start(body: TranscribeStartRequest | None = None) -> TranscribeStartResponse:
+    samplerate = body.samplerate if body and body.samplerate else TRANSCRIBE_SAMPLE_RATE
+    channels = body.channels if body and body.channels else TRANSCRIBE_CHANNELS
+    if samplerate <= 0 or channels <= 0:
+        raise HTTPException(status_code=400, detail="Invalid samplerate or channels")
+
+    session_id, _ = _start_mic_recording(samplerate=samplerate, channels=channels)
+    return TranscribeStartResponse(session_id=session_id, samplerate=samplerate, channels=channels)
+
+
+@app.post("/transcribe/stop", response_model=TranscribeStopResponse)
+def transcribe_stop(body: TranscribeStopRequest) -> TranscribeStopResponse:
+    path = _stop_mic_recording(body.session_id)
+    model = body.model or TRANSCRIBE_MODEL
+    prompt = body.prompt or ""
+    transcript = _transcribe_file_openai(path, model=model, prompt=prompt)
+    duration = _estimate_duration_seconds(path, samplerate=TRANSCRIBE_SAMPLE_RATE)
+    try:
+        path.unlink(missing_ok=True)
+    except Exception:
+        pass
+    return TranscribeStopResponse(transcript=transcript, duration_seconds=duration)
 
 
 if __name__ == "__main__":

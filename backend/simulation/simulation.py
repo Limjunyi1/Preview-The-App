@@ -17,7 +17,7 @@ from .models import Message, PersonaSummary, SimulationRequest, SimulationRun, T
 
 DEFAULT_MODEL = "gemini-2.5-flash"
 MAX_TURNS = 50
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parents[2]
 PROMPT_PATH = REPO_ROOT / "Prompts" / "simulationPrompt.yaml"
 
 
