@@ -14,7 +14,7 @@ def main():
     # Use one of the provided audio samples as reference
     # Using the longest one for best results
     wav_dir = Path(__file__).parent / "wav"
-    speaker_wav = str(wav_dir / "swamp-outhouse.mp3")  # Longest sample
+    speaker_wav = str(wav_dir / "MonashUniversity.mp3")  # Longest sample
     
     print(f"📁 Using reference audio: {speaker_wav}")
     print("-" * 60)
