@@ -225,14 +225,14 @@ const Swiping = () => {
           <div className="pointer-events-none absolute inset-x-0 bottom-[14%] flex items-center justify-center gap-4">
             <button
               className="pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full bg-background shadow-card ring-1 ring-border transition hover:scale-105"
-              onClick={() => frontId && handleSwipe(frontId, "left")}
+              onClick={() => frontId !== undefined && handleSwipe(frontId, "left")}
               aria-label="Pass"
             >
               <X className="h-6 w-6 text-foreground" />
             </button>
             <button
               className="pointer-events-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-elevated transition hover:scale-110"
-              onClick={() => frontId && handleSwipe(frontId, "right")}
+              onClick={() => frontId !== undefined && handleSwipe(frontId, "right")}
               aria-label="Like"
             >
               <Heart className="h-7 w-7" />
