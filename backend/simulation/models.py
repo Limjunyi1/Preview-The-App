@@ -18,6 +18,12 @@ class Message(BaseModel):
     text: str
 
 
+class ConversationMessage(BaseModel):
+    """Chat-friendly message format with named speaker (e.g., 'ling_agent')"""
+    speaker: str
+    text: str
+
+
 class Trailer(BaseModel):
     high_point: str
     friction_point: str
@@ -29,7 +35,7 @@ class Trailer(BaseModel):
 class SimulationRequest(BaseModel):
     persona_a: PersonaSummary
     persona_b: PersonaSummary
-    turns: int = Field(20, ge=2, le=50)
+    turns: int = Field(10, ge=2, le=50)
     starter: Literal["a", "b"] = "a"
 
 
@@ -41,6 +47,7 @@ class SimulationRun(BaseModel):
     turns: int
     starter: Literal["a", "b"]
     transcript: List[Message]
+    conversation: List[ConversationMessage] = []  # Chat-friendly format with named speakers
     trailer: Optional[Trailer] = None
     model: str = "gemini-2.5-flash"
 

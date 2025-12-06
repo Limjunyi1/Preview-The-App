@@ -13,9 +13,9 @@ import google.generativeai as genai
 import yaml
 from dotenv import load_dotenv
 
-from .models import Message, PersonaSummary, SimulationRequest, SimulationRun, Trailer
+from .models import ConversationMessage, Message, PersonaSummary, SimulationRequest, SimulationRun, Trailer
 
-DEFAULT_MODEL = "gemini-2.5-flash"
+DEFAULT_MODEL = "gemini-2.5-flash-lite"
 MAX_TURNS = 50
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PROMPT_PATH = REPO_ROOT / "Prompts" / "simulationPrompt.yaml"
@@ -160,6 +160,15 @@ def run_simulation(
     if summarize:
         trailer = _summarize_transcript(transcript, request.persona_a, request.persona_b, api_key=api_key or "", model_name=model_name)
 
+    # Generate chat-friendly conversation with named speakers
+    conversation = [
+        ConversationMessage(
+            speaker=f"{names[msg.speaker].lower()}_agent",
+            text=msg.text
+        )
+        for msg in transcript
+    ]
+
     return SimulationRun(
         run_id=str(uuid4()),
         created_at=dt.datetime.utcnow(),
@@ -168,6 +177,7 @@ def run_simulation(
         turns=request.turns,
         starter=request.starter,
         transcript=transcript,
+        conversation=conversation,
         trailer=trailer,
         model=model_name,
     )

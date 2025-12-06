@@ -6,12 +6,19 @@ import { apiFetch } from "@/lib/api-client";
 // ============================================================================
 
 type TranscriptEntry = {
-  speaker: string;
+  turn: number;
+  speaker: "a" | "b";
+  text: string;
+};
+
+type ConversationMessage = {
+  speaker: string;  // e.g., "ling_agent", "maya_agent"
   text: string;
 };
 
 type SimulationRun = {
   run_id: string;
+  created_at: string;
   persona_a: {
     display_name: string;
     ai_summary: string;
@@ -20,13 +27,18 @@ type SimulationRun = {
     display_name: string;
     ai_summary: string;
   };
+  turns: number;
+  starter: "a" | "b";
   transcript: TranscriptEntry[];
-  compatibility_score: number;
-  high_points: string[];
-  friction_points: string[];
-  judge_summary: string;
-  started_at: string;
-  completed_at: string | null;
+  conversation: ConversationMessage[];  // Chat-friendly format with named speakers
+  trailer?: {
+    high_point: string;
+    friction_point: string;
+    vibe: string;
+    snippet: string;
+    icebreakers: string[];
+  } | null;
+  model: string;
 };
 
 type RunSimulationRequest = {
@@ -45,7 +57,7 @@ type RunSimulationRequest = {
  */
 export function useRunSimulation() {
   return useMutation<SimulationRun, Error, RunSimulationRequest>({
-    mutationFn: async ({ userA, userB, turns = 20, starter = "a" }) => {
+    mutationFn: async ({ userA, userB, turns = 10, starter = "a" }) => {
       return apiFetch<SimulationRun>("/simulate/by-user", {
         method: "POST",
         body: JSON.stringify({
@@ -84,5 +96,5 @@ export function useSimulationList(limit: number = 50) {
   });
 }
 
-export type { SimulationRun, TranscriptEntry, RunSimulationRequest };
+export type { SimulationRun, TranscriptEntry, ConversationMessage, RunSimulationRequest };
 

@@ -7,23 +7,23 @@
     "location": "Subang Jaya",
     "height": "181 cm",
     "employment_status": "student",
-    "employment_title": null,
-    "employment_industry": null,
+    "employment_title": "Computer Science student",
+    "employment_industry": "Education",
     "orientation": "women"
   },
   "relationship": {
     "intent": "long-term",
-    "pace_to_meet": "prefers to meet up quickly for coffee"
+    "pace_to_meet": null
   },
   "lifestyle": {
-    "social_energy": null,
-    "weekend_default": null,
+    "social_energy": "extrovert",
+    "weekend_default": "go out, play ball",
     "travel_style": null,
     "work_life_balance": null,
     "pets": null
   },
   "values": {
-    "family_closeness": null,
+    "family_closeness": "prefers more independence",
     "money_mindset": null,
     "openness_to_kids": null,
     "faith_importance": null,
@@ -46,19 +46,24 @@
     "tone": "casual",
     "vocabulary_style": "simple",
     "humor_style": "none",
-    "emoji_punctuation": "none",
+    "emoji_punctuation": "rare; uses standard punctuation",
     "directness": "very direct",
-    "energy_level": "chill",
+    "energy_level": "eager",
     "emotional_expressiveness": "guarded",
-    "quirks_and_phrases": [],
-    "example_messages": [
-      "ling",
-      "2003 22",
-      "ok im done next step"
+    "quirks_and_phrases": [
+      "lets start now",
+      "lets start swiping now"
     ],
-    "system_prompt_snippet": "This user is direct and to the point. Use simple, short sentences. Avoid emojis and slang. Keep responses concise and factual."
+    "example_messages": [
+      "hi im ling",
+      "im 22 , born 2003",
+      "im he him, im straight i like girls",
+      "extrovert,",
+      "lets start swiping now"
+    ],
+    "system_prompt_snippet": "The user is direct and concise. They use simple language and prefer to get straight to the point. They are eager to move forward and do not use emojis or extensive punctuation."
   },
-  "additional_notes": "User explicitly requested to stop the conversation.",
-  "AI_summary": "Ling is a 22-year-old student from Subang Jaya, 181 cm tall. He's looking for a long-term relationship and prefers to meet up quickly for coffee. His vibe is pretty direct and he keeps things concise, no unnecessary fluff. He seemed ready to move on quickly.",
+  "additional_notes": "User expressed eagerness to start using the app quickly, leading to an early stop in the intake process.",
+  "AI_summary": "Ling's 22, he/him, and from Subang Jaya. He's a Computer Science student and a tall king at 181 cm. He's looking for a long-term thing and totally an extrovert who loves playing ball on the weekends. He values independence with his fam/friends. He was super direct and ready to dive into the app! No cap.",
   "confidence_score": "medium"
 }

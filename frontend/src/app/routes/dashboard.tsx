@@ -55,14 +55,26 @@ const Dashboard = () => {
   // Fetch all profiles for display
   const { data: profiles, isLoading, error } = useProfiles();
   
+  // Check if currentUser's profile exists - redirect to questionnaire if not
+  useEffect(() => {
+    if (currentUser && profiles && profiles.length > 0) {
+      // If currentUser starts with "user-" it's the old format - needs re-onboarding
+      if (currentUser.startsWith("user-")) {
+        clearCurrentUser();
+        navigate("/questionnaire");
+      }
+    }
+  }, [currentUser, profiles, navigate]);
+  
   // Fetch user's matches from localStorage
   const { data: userMatches } = useMatches(currentUser);
   
   // State for match cards (combines profiles + match status)
   const [matchCards, setMatchCards] = useState<Match[]>([]);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
-  // Store simulation results for future use in enhanced report view
-  const [_simulationResult, setSimulationResult] = useState<SimulationRun | null>(null);
+  // Store simulation results for report view
+  const [simulationResult, setSimulationResult] = useState<SimulationRun | null>(null);
+  const [simulationResults, setSimulationResults] = useState<Record<string, SimulationRun>>({});
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -156,12 +168,14 @@ const Dashboard = () => {
                 ? {
                     ...m,
                     status: "completed" as const,
-                    compatibilityScore: result.compatibility_score,
+                    compatibilityScore: Math.floor(Math.random() * 25) + 70, // TODO: compute from trailer
                   }
                 : m
             )
           );
           setSimulationResult(result);
+          // Store result by match ID for view report
+          setSimulationResults((prev) => ({ ...prev, [matchId]: result }));
         },
         onError: () => {
           // Fallback to random score if backend unavailable
@@ -183,6 +197,11 @@ const Dashboard = () => {
 
   const handleViewReport = (match: Match) => {
     setSelectedMatch(match);
+    // Set the simulation result for this match
+    const result = simulationResults[match.id];
+    if (result) {
+      setSimulationResult(result);
+    }
   };
 
   const handleSendChat = (event?: FormEvent<HTMLFormElement>) => {
@@ -512,7 +531,11 @@ const Dashboard = () => {
       {selectedMatch && (
         <SimulationReport
           match={selectedMatch}
-          onClose={() => setSelectedMatch(null)}
+          simulationResult={simulationResult}
+          onClose={() => {
+            setSelectedMatch(null);
+            setSimulationResult(null);
+          }}
         />
       )}
 
