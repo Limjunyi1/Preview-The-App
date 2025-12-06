@@ -29,14 +29,15 @@ type Profile = {
 
 type CardProps = Profile & {
   isFront: boolean;
+  isFlipped: boolean;
   onSwipe: (id: number, dir: SwipeDirection) => void;
-  onInfo: (profile: Profile) => void;
+  onFlip: (id: number, flipped: boolean) => void;
 };
 
 const Swiping = () => {
   const [deckVersion, setDeckVersion] = useState(0);
   const [matches, setMatches] = useState<Profile[]>([]);
-  const [infoProfile, setInfoProfile] = useState<Profile | null>(null);
+  const [flippedId, setFlippedId] = useState<number | null>(null);
 
   const profiles = useMemo(() => seedProfiles.map((p, i) => ({ ...p, id: p.id + deckVersion * 100 + i })), [deckVersion]);
   const [cards, setCards] = useState<Profile[]>(profiles);
@@ -47,13 +48,14 @@ const Swiping = () => {
 
   const resetDeck = () => {
     setMatches([]);
-    setInfoProfile(null);
+    setFlippedId(null);
     setDeckVersion((v) => v + 1);
   };
 
   const handleSwipe = (id: number, dir: SwipeDirection) => {
     const card = cards.find((c) => c.id === id);
     setCards((prev) => prev.filter((c) => c.id !== id));
+    setFlippedId((current) => (current === id ? null : current));
     if (card && dir === "right") {
       setMatches((prev) => [card, ...prev.slice(0, 2)]);
     }
@@ -133,8 +135,9 @@ const Swiping = () => {
               key={card.id}
               {...card}
               isFront={card.id === frontId}
+              isFlipped={card.id === flippedId}
               onSwipe={handleSwipe}
-              onInfo={setInfoProfile}
+              onFlip={(id, flip) => setFlippedId(flip ? id : null)}
             />
           ))}
           {cards.length === 0 && (
@@ -164,7 +167,9 @@ const Swiping = () => {
               className="pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full bg-background shadow-card ring-1 ring-border transition hover:scale-105"
               onClick={() => {
                 const current = cards.find((c) => c.id === frontId);
-                if (current) setInfoProfile(current);
+                if (current) {
+                  setFlippedId((prev) => (prev === current.id ? null : current.id));
+                }
               }}
               aria-label="More info"
             >
@@ -202,67 +207,6 @@ const Swiping = () => {
         )}
       </div>
 
-      {/* Info drawer */}
-      {infoProfile && (
-        <div className="fixed inset-0 z-50 bg-foreground/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
-          <div className="w-full max-w-2xl rounded-3xl bg-background shadow-elevated border border-border overflow-hidden animate-scale-in">
-            <div className="flex items-center justify-between p-4 border-b border-border">
-              <div className="flex items-center gap-3">
-                <img src={infoProfile.photo} alt={infoProfile.name} className="h-14 w-14 rounded-2xl object-cover" />
-                <div>
-                  <p className="text-lg font-semibold text-foreground">{infoProfile.name}, {infoProfile.age}</p>
-                  <p className="text-sm text-muted-foreground">{infoProfile.job} • {infoProfile.education}</p>
-                </div>
-              </div>
-              <Button variant="ghost" size="icon" onClick={() => setInfoProfile(null)}>
-                <X className="w-5 h-5" />
-              </Button>
-            </div>
-
-            <div className="space-y-4 p-4">
-              <div className="flex flex-wrap gap-2">
-                <Badge variant="secondary" className="bg-warning/20 text-warning">Compatibility {infoProfile.compatibility}%</Badge>
-                <Badge variant="secondary" className="bg-primary/10 text-primary">{infoProfile.pronouns}</Badge>
-                <Badge variant="secondary" className="bg-secondary/20 text-foreground">{infoProfile.distance}</Badge>
-              </div>
-
-              <div className="rounded-2xl bg-muted/60 p-4 border border-border">
-                <h4 className="font-semibold text-foreground mb-1">Shared wins</h4>
-                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
-                  {infoProfile.shared.map((item, idx) => <li key={idx}>{item}</li>)}
-                </ul>
-              </div>
-
-              <div className="rounded-2xl bg-warning/10 p-4 border border-warning/30">
-                <h4 className="font-semibold text-warning mb-1">Watch-out</h4>
-                <p className="text-sm text-muted-foreground">{infoProfile.friction}</p>
-              </div>
-
-              <div className="rounded-2xl border border-border p-4 flex items-start gap-3">
-                <Shield className="w-5 h-5 text-primary mt-0.5" />
-                <div>
-                  <p className="text-sm font-semibold text-foreground">Prompt</p>
-                  <p className="text-sm text-muted-foreground">{infoProfile.prompt}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="border-t border-border p-4 grid gap-3 sm:grid-cols-2">
-              <Button variant="outline" className="w-full gap-2" onClick={() => setInfoProfile(null)}>
-                <X className="w-4 h-4" />
-                Pass
-              </Button>
-              <Button variant="hero" className="w-full gap-2" onClick={() => {
-                setInfoProfile(null);
-                setMatches((prev) => [infoProfile, ...prev.slice(0, 2)]);
-              }}>
-                <Heart className="w-4 h-4" />
-                Swipe right
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
@@ -282,8 +226,9 @@ const ProfileCard = ({
   friction,
   prompt,
   isFront,
+  isFlipped,
   onSwipe,
-  onInfo,
+  onFlip,
 }: CardProps) => {
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-120, 120], [-14, 14]);
@@ -310,7 +255,7 @@ const ProfileCard = ({
         opacity,
         touchAction: "none",
       }}
-      drag={isFront ? "x" : false}
+      drag={isFront && !isFlipped ? "x" : false}
       dragConstraints={{ left: -1000, right: 1000 }}
       dragElastic={0.2}
       dragSnapToOrigin
@@ -318,54 +263,104 @@ const ProfileCard = ({
       whileTap={{ scale: 0.98 }}
       whileDrag={{ scale: 1.02 }}
     >
-      <div className="relative h-full w-full overflow-hidden rounded-3xl border border-border bg-background">
-        <img src={photo} alt={name} className="h-full w-full object-cover" loading="lazy" />
-        <div className="absolute inset-x-0 bottom-0 space-y-3 bg-gradient-to-t from-black/80 via-black/20 to-transparent p-5 text-white">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-2xl font-semibold">{name}, {age}</p>
-              <p className="text-sm text-white/80">{pronouns} • {distance}</p>
-              <p className="text-sm text-white/80">{job} • {education}</p>
-            </div>
-            <div className="rounded-full bg-primary text-primary-foreground px-3 py-1 text-sm font-semibold shadow-soft">
+      <div className="relative h-full w-full [perspective:1600px]">
+        <div
+          className={cn(
+            "relative h-full w-full rounded-3xl transition-transform duration-500 [transform-style:preserve-3d]",
+            isFlipped ? "[transform:rotateY(180deg)]" : ""
+          )}
+        >
+          <div className="absolute inset-0 overflow-hidden rounded-3xl border border-border bg-background [backface-visibility:hidden]">
+            <img src={photo} alt={name} className="h-full w-full object-cover" loading="lazy" />
+            <div className="absolute top-3 right-3 rounded-full bg-black/60 px-3 py-1 text-sm font-semibold text-white shadow-soft backdrop-blur">
               {compatibility}% match
             </div>
-          </div>
+            <div className="absolute inset-x-0 bottom-0 space-y-3 bg-gradient-to-t from-black/80 via-black/20 to-transparent p-5 text-white">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-2xl font-semibold">{name}, {age}</p>
+                  <p className="text-sm text-white/80">{pronouns} • {distance}</p>
+                  <p className="text-sm text-white/80">{job} • {education}</p>
+                </div>
+              </div>
 
-          <div className="flex flex-wrap gap-2">
-            {shared.slice(0, 3).map((item, idx) => (
-              <span key={idx} className="rounded-full bg-white/20 px-3 py-1 text-xs font-medium">
-                {item}
-              </span>
-            ))}
-          </div>
+              <div className="flex flex-wrap gap-2">
+                {shared.slice(0, 3).map((item, idx) => (
+                  <span key={idx} className="rounded-full bg-white/20 px-3 py-1 text-xs font-medium">
+                    {item}
+                  </span>
+                ))}
+              </div>
 
-          <div className="flex items-center justify-between rounded-2xl bg-white/10 px-3 py-2">
-            <div className="flex items-center gap-2 text-sm">
-              <MapPin className="h-4 w-4" />
-              <span>{vibe}</span>
+              <div className="flex items-center justify-between rounded-2xl bg-white/10 px-3 py-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <MapPin className="h-4 w-4" />
+                  <span>{vibe}</span>
+                </div>
+                <button
+                  className="inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1 text-xs font-semibold backdrop-blur hover:bg-white/30"
+                  onClick={() => onFlip(id, true)}
+                >
+                  <Info className="h-4 w-4" />
+                  More
+                </button>
+              </div>
             </div>
-            <button
-              className="inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1 text-xs font-semibold backdrop-blur hover:bg-white/30"
-              onClick={() => onInfo({
-                id,
-                name,
-                age,
-                pronouns,
-                job,
-                education,
-                distance,
-                photo,
-                compatibility,
-                shared,
-                friction,
-                prompt,
-                vibe,
-              })}
-            >
-              <Info className="h-4 w-4" />
-              More
-            </button>
+          </div>
+
+          <div className="absolute inset-0 rounded-3xl border border-border bg-card p-5 text-foreground overflow-y-auto [transform:rotateY(180deg)] [backface-visibility:hidden]">
+            <div className="flex items-center gap-3">
+              <img src={photo} alt={name} className="h-14 w-14 rounded-2xl object-cover" />
+              <div>
+                <p className="text-lg font-semibold text-foreground">{name}, {age}</p>
+                <p className="text-sm text-muted-foreground">{job} • {education}</p>
+                <p className="text-xs text-muted-foreground">{distance}</p>
+              </div>
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Badge variant="secondary" className="bg-warning/20 text-warning">Compatibility {compatibility}%</Badge>
+              <Badge variant="secondary" className="bg-primary/10 text-primary">{pronouns}</Badge>
+              <Badge variant="secondary" className="bg-secondary/20 text-foreground">{vibe}</Badge>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              <div className="rounded-2xl bg-muted/60 p-4 border border-border">
+                <h4 className="font-semibold text-foreground mb-1">Shared wins</h4>
+                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                  {shared.map((item, idx) => <li key={idx}>{item}</li>)}
+                </ul>
+              </div>
+
+              <div className="rounded-2xl bg-warning/10 p-4 border border-warning/30">
+                <h4 className="font-semibold text-warning mb-1">Watch-out</h4>
+                <p className="text-sm text-muted-foreground">{friction}</p>
+              </div>
+
+              <div className="rounded-2xl border border-border p-4 flex items-start gap-3">
+                <Shield className="w-5 h-5 text-primary mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Prompt</p>
+                  <p className="text-sm text-muted-foreground">{prompt}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <Button variant="outline" className="w-full gap-2" onClick={() => onFlip(id, false)}>
+                <X className="w-4 h-4" />
+                Back to photo
+              </Button>
+              <Button
+                variant="hero"
+                className="w-full gap-2"
+                onClick={() => isFront && onSwipe(id, "right")}
+                disabled={!isFront}
+              >
+                <Heart className="w-4 h-4" />
+                Swipe right
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -433,6 +428,81 @@ const seedProfiles: Profile[] = [
     friction: "You like early mornings; he sketches late at night.",
     prompt: "My studio playlist is 90% lo-fi and 10% surprise salsa.",
     vibe: "Art & architecture",
+  },
+  {
+    id: 5,
+    name: "Zara",
+    age: 28,
+    pronouns: "She/Her",
+    job: "Marketing Manager",
+    education: "LSE",
+    distance: "3.2 km away",
+    photo: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1200&q=80",
+    compatibility: 85,
+    shared: ["Loves weekend markets", "Values work-life balance", "Enjoys deep conversations"],
+    friction: "She's a night owl; you prefer early mornings for productivity.",
+    prompt: "Currently reading three books at once and somehow keeping track of all the plots.",
+    vibe: "Books & brunch",
+  },
+  {
+    id: 6,
+    name: "Alex",
+    age: 32,
+    pronouns: "He/Him",
+    job: "Head Chef",
+    education: "Culinary Institute",
+    distance: "5.8 km away",
+    photo: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=1200&q=80",
+    compatibility: 78,
+    shared: ["Foodie adventures", "Values quality time", "Weekend cooking experiments"],
+    friction: "He works late nights; you prefer consistent schedules.",
+    prompt: "I can make a five-course meal from whatever's in your fridge. Challenge accepted?",
+    vibe: "Farm to table",
+  },
+  {
+    id: 7,
+    name: "Kai",
+    age: 25,
+    pronouns: "They/Them",
+    job: "Environmental Scientist",
+    education: "UBC",
+    distance: "2.7 km away",
+    photo: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=80",
+    compatibility: 92,
+    shared: ["Sustainability focused", "Outdoor adventures", "Thoughtful communicator"],
+    friction: "They prefer camping trips; you like comfortable accommodations.",
+    prompt: "My ideal date involves hiking boots and discovering hidden waterfalls.",
+    vibe: "Nature & mindfulness",
+  },
+  {
+    id: 8,
+    name: "Luna",
+    age: 24,
+    pronouns: "She/Her",
+    job: "Travel Photographer",
+    education: "Art Institute",
+    distance: "6.1 km away",
+    photo: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=1200&q=80",
+    compatibility: 73,
+    shared: ["Creative pursuits", "Loves storytelling", "Values authenticity"],
+    friction: "She travels frequently for work; you prefer stability and routine.",
+    prompt: "I've captured sunrises in 12 countries, but my favorite shot is still from my hometown.",
+    vibe: "Wanderlust & art",
+  },
+  {
+    id: 9,
+    name: "Diego",
+    age: 31,
+    pronouns: "He/Him",
+    job: "Music Producer",
+    education: "Berklee",
+    distance: "4.3 km away",
+    photo: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=1200&q=80",
+    compatibility: 80,
+    shared: ["Music enthusiast", "Creative collaboration", "Values emotional expression"],
+    friction: "He's most creative at night; you're a morning person.",
+    prompt: "Currently working on a track that blends bossa nova with electronic beats. It shouldn't work, but it does.",
+    vibe: "Rhythm & soul",
   },
 ];
 

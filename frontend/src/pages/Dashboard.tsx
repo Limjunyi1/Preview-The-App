@@ -1,14 +1,20 @@
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, X, Sparkles, Clock, Users, ChevronLeft, ChevronRight, User, Settings, LogOut } from "lucide-react";
+import { Search, Filter, X, Sparkles, Clock, Users, ChevronLeft, ChevronRight, User, Settings, LogOut, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import MatchCard from "@/components/MatchCard";
 import SimulationReport from "@/components/SimulationReport";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import BrandLogo from "@/components/BrandLogo";
+
+interface ChatMessage {
+  id: string;
+  sender: "bot" | "user";
+  text: string;
+}
 
 export interface Match {
   id: string;
@@ -84,6 +90,110 @@ const mockMatches: Match[] = [
     avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&h=400&fit=crop",
     tags: ["Caring", "Stable", "Active lifestyle"],
     status: "idle"
+  },
+  {
+    id: "7",
+    name: "Riley",
+    age: 29,
+    occupation: "Data Analyst",
+    location: "Denver, CO",
+    avatar: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=400&h=400&fit=crop",
+    tags: ["Analytical", "Hiker", "Coffee lover"],
+    status: "idle"
+  },
+  {
+    id: "8",
+    name: "Jamie",
+    age: 33,
+    occupation: "Product Manager",
+    location: "Boston, MA",
+    avatar: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=400&h=400&fit=crop",
+    tags: ["Strategic", "Family-focused", "Foodie"],
+    status: "completed",
+    compatibilityScore: 79
+  },
+  {
+    id: "9",
+    name: "Avery",
+    age: 27,
+    occupation: "UX Researcher",
+    location: "Portland, OR",
+    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=400&fit=crop",
+    tags: ["Curious", "Outdoorsy", "Book lover"],
+    status: "idle"
+  },
+  {
+    id: "10",
+    name: "Peyton",
+    age: 30,
+    occupation: "Attorney",
+    location: "Washington, DC",
+    avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=400&fit=crop",
+    tags: ["Ambitious", "Advocate", "Traveler"],
+    status: "completed",
+    compatibilityScore: 81
+  },
+  {
+    id: "11",
+    name: "Drew",
+    age: 31,
+    occupation: "Architect",
+    location: "Minneapolis, MN",
+    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop",
+    tags: ["Creative", "Minimalist", "Runner"],
+    status: "idle"
+  },
+  {
+    id: "12",
+    name: "Quinn",
+    age: 28,
+    occupation: "Nurse Practitioner",
+    location: "Phoenix, AZ",
+    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop",
+    tags: ["Empathetic", "Reliable", "Sun chaser"],
+    status: "idle"
+  },
+  {
+    id: "13",
+    name: "Reese",
+    age: 26,
+    occupation: "Content Strategist",
+    location: "Miami, FL",
+    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&h=400&fit=crop",
+    tags: ["Storyteller", "Beach lover", "Food explorer"],
+    status: "completed",
+    compatibilityScore: 76
+  },
+  {
+    id: "14",
+    name: "Cameron",
+    age: 34,
+    occupation: "Finance Lead",
+    location: "Atlanta, GA",
+    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=400&fit=crop",
+    tags: ["Planner", "Mentor", "Jazz fan"],
+    status: "idle"
+  },
+  {
+    id: "15",
+    name: "Skyler",
+    age: 29,
+    occupation: "Civil Engineer",
+    location: "Dallas, TX",
+    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop",
+    tags: ["Problem-solver", "Cyclist", "DIY enthusiast"],
+    status: "idle"
+  },
+  {
+    id: "16",
+    name: "Devon",
+    age: 32,
+    occupation: "Chef",
+    location: "Houston, TX",
+    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=400&fit=crop",
+    tags: ["Creative", "Foodie", "Night owl"],
+    status: "completed",
+    compatibilityScore: 83
   }
 ];
 
@@ -93,6 +203,20 @@ const Dashboard = () => {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatInput, setChatInput] = useState("");
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+    {
+      id: "bot-1",
+      sender: "bot",
+      text: "Hi! I'm Ur AI Bestie. I can suggest matches, queue a swipe session, or answer quick questions."
+    },
+    {
+      id: "bot-2",
+      sender: "bot",
+      text: "Try asking “Who should I simulate next?” or tap Swipe to jump in."
+    }
+  ]);
   const navigate = useNavigate();
 
   const handleRunSimulation = (matchId: string) => {
@@ -118,13 +242,61 @@ const Dashboard = () => {
     setSelectedMatch(match);
   };
 
+  const handleSendChat = (event?: FormEvent<HTMLFormElement>) => {
+    event?.preventDefault();
+
+    const nextMessage = chatInput.trim();
+    if (!nextMessage) return;
+
+    const userMessage: ChatMessage = {
+      id: `user-${Date.now()}`,
+      sender: "user",
+      text: nextMessage
+    };
+
+    setChatMessages(prev => [...prev, userMessage]);
+    setChatInput("");
+
+    setTimeout(() => {
+      setChatMessages(prev => [
+        ...prev,
+        {
+          id: `bot-${Date.now()}`,
+          sender: "bot",
+          text: "Got it! Want me to line up a swipe session or run a simulation on a match?"
+        }
+      ]);
+    }, 450);
+  };
+
+  const quickActions = [
+    {
+      label: "Start swiping",
+      onClick: () => navigate("/swiping")
+    },
+    {
+      label: "Run a simulation",
+      onClick: () => {
+        setIsChatOpen(true);
+        setChatMessages(prev => [
+          ...prev,
+          {
+            id: `bot-${Date.now()}`,
+            sender: "bot",
+            text: "Tell me which match you'd like to simulate, and I'll queue it up."
+          }
+        ]);
+      }
+    }
+  ];
+
   const filteredMatches = matches.filter(match =>
     match.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     match.occupation.toLowerCase().includes(searchQuery.toLowerCase()) ||
     match.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  const pageSize = 5;
+  const pageSize = 8;
   const totalPages = Math.max(1, Math.ceil(filteredMatches.length / pageSize));
   const safePage = Math.min(currentPage, totalPages);
   const startIndex = (safePage - 1) * pageSize;
@@ -292,7 +464,7 @@ const Dashboard = () => {
           </div>
 
           {/* Match Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 justify-items-center">
             {paginatedMatches.map((match) => (
               <MatchCard
                 key={match.id}
@@ -338,6 +510,88 @@ const Dashboard = () => {
           onClose={() => setSelectedMatch(null)}
         />
       )}
+
+      {/* Chatbot Drawer */}
+      {isChatOpen && (
+        <div className="fixed bottom-24 right-6 z-50 w-[min(360px,calc(100vw-2.5rem))] overflow-hidden rounded-2xl border border-border bg-card shadow-2xl shadow-primary/25">
+          <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-primary/10 via-secondary/10 to-primary/10 border-b border-border">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary" />
+              <div>
+                <p className="text-sm font-semibold text-foreground">AI Bestie</p>
+                <p className="text-xs text-muted-foreground">Personalized dating copilot</p>
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setIsChatOpen(false)}
+              aria-label="Close chat"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+
+          <div className="max-h-80 overflow-y-auto space-y-3 p-4">
+            {chatMessages.map(message => (
+              <div key={message.id} className={cn("flex", message.sender === "user" ? "justify-end" : "justify-start")}>
+                <div
+                  className={cn(
+                    "max-w-[80%] rounded-2xl px-3 py-2 text-sm shadow-sm",
+                    message.sender === "user"
+                      ? "bg-primary text-primary-foreground rounded-br-none"
+                      : "bg-muted text-foreground rounded-bl-none"
+                  )}
+                >
+                  {message.text}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="px-4 pb-3 space-y-2">
+            <div className="flex gap-2">
+              {quickActions.map(action => (
+                <button
+                  key={action.label}
+                  onClick={action.onClick}
+                  className="text-xs px-3 py-2 rounded-full border border-border hover:border-primary hover:text-primary transition"
+                  type="button"
+                >
+                  {action.label}
+                </button>
+              ))}
+            </div>
+
+            <form onSubmit={handleSendChat} className="flex items-center gap-2">
+              <Input
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder="Ask anything or say hi..."
+                className="flex-1"
+                aria-label="Chat message"
+              />
+              <Button type="submit" size="icon" className="shrink-0">
+                <Send className="w-4 h-4" />
+              </Button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Action Button */}
+      <Button
+        className="fixed bottom-6 right-6 z-50 rounded-full px-5 py-4 shadow-xl shadow-primary/25 bg-gradient-to-br from-primary to-secondary text-primary-foreground hover:shadow-2xl hover:-translate-y-0.5 transition"
+        size="lg"
+        onClick={() => setIsChatOpen((open) => !open)}
+        aria-label="AI Bestie"
+        aria-expanded={isChatOpen}
+        title="AI Bestie"
+      >
+        <Sparkles className="w-5 h-5" />
+        <span className="hidden sm:inline font-medium">AI Bestie</span>
+      </Button>
     </div>
   );
 };

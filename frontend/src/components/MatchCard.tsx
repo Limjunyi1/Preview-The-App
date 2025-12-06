@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Play, Eye, MapPin, Briefcase, Sparkles, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useNavigate } from "react-router-dom";
 import type { Match } from "@/pages/Dashboard";
 
 interface MatchCardProps {
@@ -12,10 +13,11 @@ interface MatchCardProps {
 
 const MatchCard = ({ match, onRunSimulation, onViewReport }: MatchCardProps) => {
   const { id, name, age, occupation, location, avatar, tags, status, compatibilityScore } = match;
+  const navigate = useNavigate();
 
   return (
     <div className={cn(
-      "group relative rounded-2xl border border-border bg-card overflow-hidden transition-all duration-300",
+      "group relative w-full max-w-[300px] mx-auto rounded-2xl border border-border bg-card overflow-hidden transition-all duration-300",
       status === "simulating" && "ring-2 ring-primary/50",
       status === "completed" && "hover:shadow-elevated cursor-pointer"
     )}>
@@ -97,7 +99,7 @@ const MatchCard = ({ match, onRunSimulation, onViewReport }: MatchCardProps) => 
         {/* Tags */}
         <div className="flex flex-wrap gap-2 mb-4">
           {tags.map((tag, index) => (
-            <Badge key={index} variant="secondary" className="text-xs">
+            <Badge key={index} variant="secondary" className="text-xs bg-secondary/50">
               {tag}
             </Badge>
           ))}
@@ -131,7 +133,15 @@ const MatchCard = ({ match, onRunSimulation, onViewReport }: MatchCardProps) => 
                 <Eye className="w-4 h-4" />
                 View Report
               </Button>
-              <Button variant="outline" size="icon">
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label={`Chat with ${name}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/chat/${id}`);
+                }}
+              >
                 <MessageSquare className="w-4 h-4" />
               </Button>
             </>
