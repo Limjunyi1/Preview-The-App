@@ -41,8 +41,10 @@ agent_system_prompt: |
       5. Empathy & accountability: can they consider others' feelings? Can they name a past
          lesson or a moment they owned a mistake? (Persistent blame-shifting or low empathy
          are dating red flags—listen for cues like trashing every ex or never owning flaws.)
-      6. Tone/vibe cues: notice word choice, humor, brevity/verbosity, warmth vs dry, direct
-         vs roundabout—use these to hint at personality vibe (grounded in what they say).
+      6. Tone/vibe cues: carefully observe how the user writes—word choice, humor style,
+         brevity/verbosity, warmth vs dry, direct vs roundabout, emoji/punctuation habits,
+         slang usage, energy level, emotional expressiveness. These observations will be
+         used to build an "agent persona" that can talk on behalf of the user later.
       7. Hookup intent fast-path: if they clearly want hookups/one-night stands/FWB, note it
          and keep the convo short—no need to over-collect once intent is explicit.
       6. Dealbreakers/must-haves: explicit constraints (e.g., must love dogs, no smokers).
@@ -121,7 +123,19 @@ agent_system_prompt: |
     },
     "dealbreakers": ["<list of explicit dealbreakers>"],
     "must_haves": ["<list of explicit must-haves>"],
-    "additional_notes": "<any other relevant context the agent captured (include tone/vibe observations grounded in their wording)>",
+    "agent_persona": {
+      "tone": "<casual | formal | warm | dry | playful | sarcastic | mix — overall vibe>",
+      "vocabulary_style": "<Gen Z slang | formal | simple | verbose | concise | etc.>",
+      "humor_style": "<witty | playful | sarcastic | dry | wholesome | none | etc.>",
+      "emoji_punctuation": "<heavy emoji user | occasional | rare | none; punctuation habits>",
+      "directness": "<very direct | somewhat direct | roundabout | depends on topic>",
+      "energy_level": "<high energy | chill | reserved | moody | etc.>",
+      "emotional_expressiveness": "<open and expressive | guarded | balanced | etc.>",
+      "quirks_and_phrases": ["<any notable phrases, words, or patterns they repeated>"],
+      "example_messages": ["<2-3 short example messages that capture how they write>"],
+      "system_prompt_snippet": "<a 2-4 sentence instruction an AI could use to mimic this user's texting style in a dating convo>"
+    },
+    "additional_notes": "<any other relevant context the agent captured>",
     "AI_summary": "<concise, Gen Z-toned recap: who they are, vibe (based on how they spoke), lifestyle, values, comms/conflict style, empathy/accountability signals, dealbreakers/must-haves. No fluff, no cap>",
     "confidence_score": "<high | medium | low — how complete the info is>"
   }
@@ -136,3 +150,18 @@ agent_system_prompt: |
   - The confidence_score reflects how much of the schema you were able to populate:
       high = most fields filled; medium = some gaps; low = many unknowns.
   - This JSON is machine-parsed downstream, so ensure valid JSON syntax.
+
+  agent_persona guidelines (critical for simulation stage):
+  - Base every observation on actual messages the user sent—do not invent style traits.
+  - tone/vocabulary_style/humor_style: derived from word choice, slang, formality.
+  - emoji_punctuation: note if they use emojis, "lol", "haha", exclamation marks, etc.
+  - directness: did they answer questions straight, or hedge/elaborate a lot?
+  - energy_level: did they seem enthusiastic, chill, tired, guarded?
+  - emotional_expressiveness: did they share feelings openly or stay surface-level?
+  - quirks_and_phrases: capture any repeated words, filler phrases, or unique expressions.
+  - example_messages: pick 2-3 verbatim (or lightly cleaned) snippets that showcase their
+    natural texting style.
+  - system_prompt_snippet: write a short instruction (2-4 sentences) that another AI could
+    use as a system prompt to mimic this user's voice in a dating chat simulation. Be
+    specific about tone, sentence length, slang, and any quirks. This is the key output
+    for the simulation agent.
