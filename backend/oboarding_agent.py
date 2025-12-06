@@ -13,8 +13,10 @@ CLI (fallback):
 """
 
 import argparse
+import json
 import os
 import sys
+from pathlib import Path
 from typing import Optional
 
 import google.generativeai as genai
@@ -121,13 +123,25 @@ def _cli():
         # Auto-request structured JSON when the agent signals closing but hasn't emitted JSON.
         closing_phrase = "Thank you, your dates are on the way."
         has_json = "```json" in text or text.strip().startswith("{")
-        if closing_phrase in text and not has_json:
+        if closing_phrase in text:
             try:
-                json_report = agent.get_report()
-                print(f"Agent (JSON):\n{json_report}\n")
+                json_report = text
+                if not has_json:
+                    json_report = agent.get_report()
+                    print(f"Agent (JSON):\n{json_report}\n")
+                # Write to sample_data/john.json for demo purposes.
+                repo_root = Path(__file__).resolve().parent.parent
+                out_path = repo_root / "sample_data" / "john.json"
+                out_path.parent.mkdir(parents=True, exist_ok=True)
+                # Strip fencing if present.
+                payload = json_report
+                if payload.startswith("```json"):
+                    payload = payload.strip("`").lstrip("json").strip()
+                Path(out_path).write_text(payload, encoding="utf-8")
+                print(f"Saved report to {out_path}")
             except Exception as exc:  # noqa: BLE001
-                sys.stderr.write(f"Failed to get JSON report: {exc}\n")
-                break
+                sys.stderr.write(f"Failed to get/save JSON report: {exc}\n")
+            break
 
 
 if __name__ == "__main__":
