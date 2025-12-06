@@ -10,6 +10,7 @@ import Login from "@/app/routes/login";
 import NotFound from "@/app/routes/not-found";
 import Chat from "@/app/routes/chat";
 import Swiping from "@/app/routes/swiping";
+import Profile from "@/app/routes/profile";
 
 const queryClient = new QueryClient();
 
@@ -26,6 +27,7 @@ const App = () => (
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/swiping" element={<Swiping />} />
           <Route path="/chat/:id" element={<Chat />} />
+          <Route path="/profile" element={<Profile />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
