@@ -57,6 +57,16 @@ def _parse_json_from_text(text: str) -> Optional[dict]:
         return None
 
 
+def _strip_json_block(text: str) -> str:
+    """Remove JSON code block from message, returning only text before the fence."""
+    fence_pattern = r"```(?:json)?\s*.*?```"
+    # Find position of first code fence
+    match = re.search(r"```", text)
+    if match:
+        return text[:match.start()].strip()
+    return text.strip()
+
+
 def _profile_path(user_id: str) -> Path:
     PROFILE_DIR.mkdir(parents=True, exist_ok=True)
     return PROFILE_DIR / f"{user_id}.json"
@@ -280,7 +290,11 @@ def _finalize_onboarding(session_id: str, reply_text: Optional[str] = None) -> d
         persona = _parse_json_from_text(persona_text)
     if persona is None:
         raise HTTPException(status_code=500, detail="Failed to parse persona JSON")
-    _write_profile(user_id, persona)
+    
+    # Use display_name (lowercase) as filename, fallback to user_id
+    display_name = persona.get("profile", {}).get("display_name")
+    profile_id = display_name.lower() if display_name else user_id
+    _write_profile(profile_id, persona)
     onboarding_sessions.pop(session_id, None)
     return persona
 
@@ -300,6 +314,8 @@ def onboarding_reply(body: OnboardingReplyRequest) -> OnboardingReplyResponse:
     if closing_phrase in reply or has_json:
         persona_json = _finalize_onboarding(body.session_id, reply)
         done = True
+        # Strip JSON block from reply so user only sees the clean message
+        reply = _strip_json_block(reply)
 
     return OnboardingReplyResponse(reply=reply, done=done, persona_json=persona_json)
 

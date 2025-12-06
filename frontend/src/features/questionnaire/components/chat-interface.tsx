@@ -510,7 +510,7 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
               },
             ]);
             
-            // Check if onboarding is complete
+            // Check if onboarding is complete - show profile editor
             if (data.done && data.persona_json) {
               setStatus("summary");
               setFullProfile(data.persona_json as FullProfile);
@@ -598,7 +598,7 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
               },
             ]);
             
-            // Check if onboarding is complete
+            // Check if onboarding is complete - show profile editor
             if (data.done && data.persona_json) {
               setStatus("summary");
               setFullProfile(data.persona_json as FullProfile);
