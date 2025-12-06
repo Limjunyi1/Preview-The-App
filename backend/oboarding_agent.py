@@ -4,8 +4,9 @@ Onboarding agent module for reuse in the app.
 Usage as a module:
     from oboarding_agent import OnboardingAgent
     agent = OnboardingAgent()
-    first = agent.start()            # agent opening
-    reply = agent.send("My answer")  # send user text, get agent text
+    first = agent.start()                     # agent opening (text)
+    reply = agent.send("My answer")           # conversational text
+    final = agent.send("Please output the JSON report now.", structured=True)
 
 CLI (fallback):
     python backend/oboarding_agent.py --prompt ./Prompts/onboardingPrompt.yaml --model gemini-2.5-flash
@@ -54,6 +55,7 @@ class OnboardingAgent:
             model_name=self.model_name,
             system_instruction=self.system_prompt,
         )
+        self.json_generation_config = {"response_mime_type": "application/json"}
         self.chat = self.model.start_chat()
 
     def start(self) -> str:
@@ -61,9 +63,18 @@ class OnboardingAgent:
         resp = self.chat.send_message("Start the onboarding conversation.")
         return resp.text.strip() if hasattr(resp, "text") else str(resp)
 
-    def send(self, user_text: str) -> str:
-        """Send a user message and return agent text."""
-        resp = self.chat.send_message(user_text)
+    def send(self, user_text: str, structured: bool = False) -> str:
+        """Send a user message and return agent text (or structured JSON if structured=True)."""
+        gen_cfg = self.json_generation_config if structured else None
+        resp = self.chat.send_message(user_text, generation_config=gen_cfg)
+        return resp.text.strip() if hasattr(resp, "text") else str(resp)
+
+    def get_report(self) -> str:
+        """Request the structured JSON report."""
+        resp = self.chat.send_message(
+            "Generate the JSON report now.",
+            generation_config=self.json_generation_config,
+        )
         return resp.text.strip() if hasattr(resp, "text") else str(resp)
 
 
@@ -106,6 +117,17 @@ def _cli():
         except Exception as exc:  # noqa: BLE001
             sys.stderr.write(f"Model error: {exc}\n")
             break
+
+        # Auto-request structured JSON when the agent signals closing but hasn't emitted JSON.
+        closing_phrase = "Thank you, your dates are on the way."
+        has_json = "```json" in text or text.strip().startswith("{")
+        if closing_phrase in text and not has_json:
+            try:
+                json_report = agent.get_report()
+                print(f"Agent (JSON):\n{json_report}\n")
+            except Exception as exc:  # noqa: BLE001
+                sys.stderr.write(f"Failed to get JSON report: {exc}\n")
+                break
 
 
 if __name__ == "__main__":
