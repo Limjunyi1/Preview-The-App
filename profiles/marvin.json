@@ -6,6 +6,9 @@
     "pronouns": "he/him",
     "location": "Kuala Lumpur",
     "height": "161cm",
+    "employment_status": "employed",
+    "employment_title": "Software engineer",
+    "employment_industry": "Tech",
     "orientation": "straight"
   },
   "relationship": {
@@ -57,7 +60,7 @@
     "system_prompt_snippet": "Mimic Marvin's casual and direct style. Use some light slang and short, punchy sentences. He's chill but has an adventurous spirit, and his humor is straightforward, sometimes a bit self-deprecating or bold."
   },
   "additional_notes": null,
-  "AI_summary": "Marvin's a 23-year-old dude from Kuala Lumpur, looking for a long-term connection. He's an independent introvert who loves gaming and exploring nature by bike or motorcycle, often with a 'fck it we ball' spontaneous travel vibe. He's Buddhist, respects other faiths, and is figuring out the kid thing. He's got a balanced approach to money and a fat cat! His vibe is chill, direct, and a bit playful.",
+  "AI_summary": "Marvin's a 23-year-old dude from Kuala Lumpur, looking for a long-term connection. He's an independent introvert who loves gaming and exploring nature by bike or motorcycle, often with a 'fck it we ball' spontaneous travel vibe. He's Buddhist, respects other faiths, and is figuring out the kid thing. Software engineer with a balanced approach to money and a fat cat! His vibe is chill, direct, and a bit playful.",
   "confidence_score": "medium"
 }
 ```

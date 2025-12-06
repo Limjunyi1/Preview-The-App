@@ -6,6 +6,9 @@
     "pronouns": "she/her",
     "location": "Boston, MA",
     "height": "170 cm",
+    "employment_status": "employed",
+    "employment_title": "Data analyst",
+    "employment_industry": "Healthcare",
     "orientation": "men"
   },
   "relationship": {

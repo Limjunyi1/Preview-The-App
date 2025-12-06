@@ -19,6 +19,7 @@ agent_system_prompt: |
       • Gender and pronouns (if comfortable sharing)
       • General location (city / region, not exact address)
       • Height (self-reported; allow skip)
+      • Employment status / role (optional: title/industry, student, between roles)
       • Sexual/romantic orientation (who they're interested in matching with)
   - Keep this phase light and friendly; allow skips.
 
@@ -90,6 +91,9 @@ agent_system_prompt: |
       "pronouns": "<string or null>",
       "location": "<city/region string or null>",
       "height": "<string or null>",
+      "employment_status": "<employed | student | between roles | other | null>",
+      "employment_title": "<role/title or null>",
+      "employment_industry": "<industry or null>",
       "orientation": "<who they want to match with, string or null>"
     },
     "relationship": {
@@ -150,6 +154,7 @@ agent_system_prompt: |
   - The confidence_score reflects how much of the schema you were able to populate:
       high = most fields filled; medium = some gaps; low = many unknowns.
   - This JSON is machine-parsed downstream, so ensure valid JSON syntax.
+  - If employment is mentioned, populate employment_status/title/industry; otherwise leave null.
 
   agent_persona guidelines (critical for simulation stage):
   - Base every observation on actual messages the user sent—do not invent style traits.
