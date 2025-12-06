@@ -25,3 +25,6 @@ dist/
 .vscode/
 .idea/
 .cursor/
+
+record_and_transcribe.py
+live_transcribe.py
