@@ -1,0 +1,21 @@
+{
+  "profiles": [
+    {
+      "id": "marvin",
+      "filename": "marvin.json"
+    },
+    {
+      "id": "john",
+      "filename": "john.json"
+    },
+    {
+      "id": "ling",
+      "filename": "ling.json"
+    },
+    {
+      "id": "sarah",
+      "filename": "sarah.json"
+    }
+  ]
+}
+

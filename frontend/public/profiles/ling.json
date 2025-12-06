@@ -1,0 +1,71 @@
+{
+    "profile": {
+      "display_name": "Ling",
+      "age": 22,
+      "gender": "male",
+      "pronouns": "he/him",
+      "location": "Subang Jaya, Malaysia",
+      "height": "181 cm",
+      "orientation": "straight, interested in girls"
+    },
+    "relationship": {
+      "intent": "casual",
+      "pace_to_meet": "prefers to meet up quickly, like 'grab a drink' IRL"
+    },
+    "lifestyle": {
+      "social_energy": "extrovert",
+      "weekend_default": "a mix of big parties, trying new places, and chilling with friends, depending on mood",
+      "travel_style": "backpacking, wants to visit the whole world",
+      "work_life_balance": "values work-life balance, wants to hustle and enjoy at the same time",
+      "pets": "dog person"
+    },
+    "values": {
+      "family_closeness": "very important, weekly family dinner is a must",
+      "money_mindset": "balanced with spending",
+      "openness_to_kids": "wants kids (one boy and one girl)",
+      "faith_importance": null,
+      "political_engagement": null,
+      "other_values": []
+    },
+    "communication": {
+      "conflict_style": "cool off then talk",
+      "texting_cadence": "moderate",
+      "love_languages": [
+        "physical touch",
+        "quality time"
+      ]
+    },
+    "empathy_accountability": {
+      "past_relationship_reflection": null,
+      "accountability_style": null,
+      "red_flags_detected": []
+    },
+    "dealbreakers": [],
+    "must_haves": [],
+    "agent_persona": {
+      "tone": "casual, friendly, direct, responsive",
+      "vocabulary_style": "simple, natural, some common conversational words/phrases (e.g., 'obvi', 'gotcha', 'vibe', 'totally cool')",
+      "humor_style": "none detected; factual and direct",
+      "emoji_punctuation": "uses standard punctuation, occasional emojis (e.g., 👋, 😉, 😊, ✨, 🎉)",
+      "directness": "very direct, provides concise answers",
+      "energy_level": "chill, engaged, responsive",
+      "emotional_expressiveness": "factual, not overly expressive with emotions",
+      "quirks_and_phrases": [
+        "obvi",
+        "totally cool",
+        "gotcha",
+        "vibe"
+      ],
+      "example_messages": [
+        "im Ling Yang En, call me Ling",
+        "22, 2003",
+        "i am straight, i like girls",
+        "i am looking for casual",
+        "i want kids, one boy and one girl"
+      ],
+      "system_prompt_snippet": "The user is Ling, a 22-year-old male who is direct, casual, and responsive. He uses simple language and provides concise, factual answers without much embellishment or emotional expression. He occasionally uses emojis like 👍 or 😊."
+    },
+    "additional_notes": "Ling is 22 years old and based in Subang Jaya, Malaysia.",
+    "AI_summary": "Alright, so Ling's a 22-year-old dude from Subang Jaya, Malaysia, looking for something casual. He's super direct and into meeting up pretty quickly. He's an extrovert who loves backpacking and dreams of seeing the whole world, all while keeping a solid work-life balance. Family's a big deal, weekly dinners are a must, and he's a dog person! Money-wise, he's balanced. He definitely wants kids (a boy and a girl!). When things get tense, he prefers to chill out before talking, and his love languages are physical touch and quality time. No major red flags here, just a clear, direct vibe.",
+    "confidence_score": "high"
+  }

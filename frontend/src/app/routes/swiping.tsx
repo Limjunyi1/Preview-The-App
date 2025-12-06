@@ -8,23 +8,14 @@ import { Badge } from "@/components/ui/badge";
 import BrandLogo from "@/components/brand-logo";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { useSwipeProfiles } from "@/features/profiles/api/get-profiles";
+import type { SwipeProfile } from "@/features/profiles/types/swipe-profile";
 
 type SwipeDirection = "left" | "right";
 
-type Profile = {
-  id: number;
-  name: string;
-  age: number;
-  pronouns: string;
-  job: string;
-  education: string;
-  distance: string;
-  photo: string;
-  compatibility: number;
-  shared: string[];
-  friction: string;
-  prompt: string;
-  vibe: string;
+// Use the SwipeProfile type from the profiles feature
+type Profile = SwipeProfile & {
+  numericId: number; // Keep track of numeric ID for card tracking
 };
 
 type CardProps = Profile & {
@@ -35,33 +26,63 @@ type CardProps = Profile & {
 };
 
 const Swiping = () => {
-  const [deckVersion, setDeckVersion] = useState(0);
   const [matches, setMatches] = useState<Profile[]>([]);
   const [flippedId, setFlippedId] = useState<number | null>(null);
 
-  const profiles = useMemo(() => seedProfiles.map((p, i) => ({ ...p, id: p.id + deckVersion * 100 + i })), [deckVersion]);
+  // Fetch real profile data
+  const { data: swipeProfiles, isLoading, error } = useSwipeProfiles();
+
+  // Transform SwipeProfile[] to Profile[] with numeric IDs
+  const profiles = useMemo(() => {
+    if (!swipeProfiles) return [];
+    return swipeProfiles.map((p, i) => ({
+      ...p,
+      numericId: i,
+    }));
+  }, [swipeProfiles]);
+
   const [cards, setCards] = useState<Profile[]>(profiles);
 
   useEffect(() => {
-    setCards(profiles);
+    if (profiles.length > 0) {
+      setCards(profiles);
+    }
   }, [profiles]);
 
-  const resetDeck = () => {
-    setMatches([]);
-    setFlippedId(null);
-    setDeckVersion((v) => v + 1);
-  };
-
   const handleSwipe = (id: number, dir: SwipeDirection) => {
-    const card = cards.find((c) => c.id === id);
-    setCards((prev) => prev.filter((c) => c.id !== id));
+    const card = cards.find((c) => c.numericId === id);
+    setCards((prev) => prev.filter((c) => c.numericId !== id));
     setFlippedId((current) => (current === id ? null : current));
     if (card && dir === "right") {
       setMatches((prev) => [card, ...prev.slice(0, 2)]);
     }
   };
 
-  const frontId = cards[cards.length - 1]?.id;
+  const frontId = cards[cards.length - 1]?.numericId;
+
+  // Handle loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-secondary/30 via-secondary/20 to-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent" />
+          <p className="mt-4 text-muted-foreground">Loading profiles...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Handle error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-secondary/30 via-secondary/20 to-background flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-destructive">Error loading profiles</p>
+          <p className="text-sm text-muted-foreground mt-2">{error.message}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-secondary/30 via-secondary/20 to-background px-4 pt-20 pb-6">
@@ -132,10 +153,10 @@ const Swiping = () => {
         <div className="relative grid aspect-[5/4] w-full items-start pt-2 place-items-center overflow-hidden rounded-3xl">
           {cards.map((card) => (
             <ProfileCard
-              key={card.id}
+              key={card.numericId}
               {...card}
-              isFront={card.id === frontId}
-              isFlipped={card.id === flippedId}
+              isFront={card.numericId === frontId}
+              isFlipped={card.numericId === flippedId}
               onSwipe={handleSwipe}
               onFlip={(id, flip) => setFlippedId(flip ? id : null)}
             />
@@ -166,9 +187,9 @@ const Swiping = () => {
             <button
               className="pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full bg-background shadow-card ring-1 ring-border transition hover:scale-105"
               onClick={() => {
-                const current = cards.find((c) => c.id === frontId);
+                const current = cards.find((c) => c.numericId === frontId);
                 if (current) {
-                  setFlippedId((prev) => (prev === current.id ? null : current.id));
+                  setFlippedId((prev) => (prev === current.numericId ? null : current.numericId));
                 }
               }}
               aria-label="More info"
@@ -190,7 +211,7 @@ const Swiping = () => {
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
               {matches.map((match) => (
-                <div key={match.id} className="flex items-center gap-3 rounded-xl border border-border bg-background/80 p-3">
+                <div key={match.numericId} className="flex items-center gap-3 rounded-xl border border-border bg-background/80 p-3">
                   <img src={match.photo} alt={match.name} className="h-12 w-12 rounded-xl object-cover" />
                   <div className="flex-1">
                     <p className="font-medium text-foreground">{match.name}, {match.age}</p>
@@ -212,7 +233,7 @@ const Swiping = () => {
 };
 
 const ProfileCard = ({
-  id,
+  numericId,
   name,
   age,
   pronouns,
@@ -237,7 +258,7 @@ const ProfileCard = ({
   const handleDragEnd = () => {
     const xVal = x.get();
     if (Math.abs(xVal) > 100) {
-      onSwipe(id, xVal > 0 ? "right" : "left");
+      onSwipe(numericId, xVal > 0 ? "right" : "left");
     }
   };
 
@@ -299,7 +320,7 @@ const ProfileCard = ({
                 </div>
                 <button
                   className="inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1 text-xs font-semibold backdrop-blur hover:bg-white/30"
-                  onClick={() => onFlip(id, true)}
+                  onClick={() => onFlip(numericId, true)}
                 >
                   <Info className="h-4 w-4" />
                   More
@@ -347,14 +368,14 @@ const ProfileCard = ({
             </div>
 
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <Button variant="outline" className="w-full gap-2" onClick={() => onFlip(id, false)}>
+              <Button variant="outline" className="w-full gap-2" onClick={() => onFlip(numericId, false)}>
                 <X className="w-4 h-4" />
                 Back to photo
               </Button>
               <Button
                 variant="hero"
                 className="w-full gap-2"
-                onClick={() => isFront && onSwipe(id, "right")}
+                onClick={() => isFront && onSwipe(numericId, "right")}
                 disabled={!isFront}
               >
                 <Heart className="w-4 h-4" />
@@ -367,144 +388,6 @@ const ProfileCard = ({
     </motion.div>
   );
 };
-
-const seedProfiles: Profile[] = [
-  {
-    id: 1,
-    name: "Maya",
-    age: 27,
-    pronouns: "She/Her",
-    job: "Product Designer",
-    education: "RISD",
-    distance: "2.1 km away",
-    photo: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1200&q=80",
-    compatibility: 87,
-    shared: ["Both prefer balanced spending", "Weekend hikes", "Direct communicators"],
-    friction: "She loves spontaneous travel; you prefer planning two months ahead.",
-    prompt: "Two truths and a lie: I collect film cameras, I ran a marathon, I hate sushi.",
-    vibe: "Coffee over cocktails",
-  },
-  {
-    id: 2,
-    name: "Elias",
-    age: 30,
-    pronouns: "He/Him",
-    job: "Software Engineer",
-    education: "MIT",
-    distance: "4.5 km away",
-    photo: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=1200&q=80",
-    compatibility: 82,
-    shared: ["Values financial transparency", "Reads sci-fi", "Morning runner"],
-    friction: "Prefers city life; you're considering a move to the suburbs.",
-    prompt: "Perfect Sunday? Long run, farmer's market, vinyls spinning.",
-    vibe: "Sunrise runner",
-  },
-  {
-    id: 3,
-    name: "Priya",
-    age: 29,
-    pronouns: "She/Her",
-    job: "Data Scientist",
-    education: "Stanford",
-    distance: "900 m away",
-    photo: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=1200&q=80",
-    compatibility: 90,
-    shared: ["Aligned on savings goals", "Cooking nights in", "Asks thoughtful questions"],
-    friction: "She likes taking the lead on plans; you prefer co-planning.",
-    prompt: "Hot take: Board games tell you more about a person than their Myers-Briggs.",
-    vibe: "Data + dumplings",
-  },
-  {
-    id: 4,
-    name: "Jamal",
-    age: 26,
-    pronouns: "He/Him",
-    job: "Architect",
-    education: "Columbia",
-    distance: "1.8 km away",
-    photo: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1200&q=80",
-    compatibility: 75,
-    shared: ["Minimalist aesthetics", "Prefers calm conflict style", "Sunday museum dates"],
-    friction: "You like early mornings; he sketches late at night.",
-    prompt: "My studio playlist is 90% lo-fi and 10% surprise salsa.",
-    vibe: "Art & architecture",
-  },
-  {
-    id: 5,
-    name: "Zara",
-    age: 28,
-    pronouns: "She/Her",
-    job: "Marketing Manager",
-    education: "LSE",
-    distance: "3.2 km away",
-    photo: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1200&q=80",
-    compatibility: 85,
-    shared: ["Loves weekend markets", "Values work-life balance", "Enjoys deep conversations"],
-    friction: "She's a night owl; you prefer early mornings for productivity.",
-    prompt: "Currently reading three books at once and somehow keeping track of all the plots.",
-    vibe: "Books & brunch",
-  },
-  {
-    id: 6,
-    name: "Alex",
-    age: 32,
-    pronouns: "He/Him",
-    job: "Head Chef",
-    education: "Culinary Institute",
-    distance: "5.8 km away",
-    photo: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=1200&q=80",
-    compatibility: 78,
-    shared: ["Foodie adventures", "Values quality time", "Weekend cooking experiments"],
-    friction: "He works late nights; you prefer consistent schedules.",
-    prompt: "I can make a five-course meal from whatever's in your fridge. Challenge accepted?",
-    vibe: "Farm to table",
-  },
-  {
-    id: 7,
-    name: "Kai",
-    age: 25,
-    pronouns: "They/Them",
-    job: "Environmental Scientist",
-    education: "UBC",
-    distance: "2.7 km away",
-    photo: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=80",
-    compatibility: 92,
-    shared: ["Sustainability focused", "Outdoor adventures", "Thoughtful communicator"],
-    friction: "They prefer camping trips; you like comfortable accommodations.",
-    prompt: "My ideal date involves hiking boots and discovering hidden waterfalls.",
-    vibe: "Nature & mindfulness",
-  },
-  {
-    id: 8,
-    name: "Luna",
-    age: 24,
-    pronouns: "She/Her",
-    job: "Travel Photographer",
-    education: "Art Institute",
-    distance: "6.1 km away",
-    photo: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=1200&q=80",
-    compatibility: 73,
-    shared: ["Creative pursuits", "Loves storytelling", "Values authenticity"],
-    friction: "She travels frequently for work; you prefer stability and routine.",
-    prompt: "I've captured sunrises in 12 countries, but my favorite shot is still from my hometown.",
-    vibe: "Wanderlust & art",
-  },
-  {
-    id: 9,
-    name: "Diego",
-    age: 31,
-    pronouns: "He/Him",
-    job: "Music Producer",
-    education: "Berklee",
-    distance: "4.3 km away",
-    photo: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=1200&q=80",
-    compatibility: 80,
-    shared: ["Music enthusiast", "Creative collaboration", "Values emotional expression"],
-    friction: "He's most creative at night; you're a morning person.",
-    prompt: "Currently working on a track that blends bossa nova with electronic beats. It shouldn't work, but it does.",
-    vibe: "Rhythm & soul",
-  },
-];
 
 export default Swiping;
 

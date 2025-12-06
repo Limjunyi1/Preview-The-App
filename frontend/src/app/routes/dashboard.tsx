@@ -9,8 +9,9 @@ import MatchCard from "@/features/matching/components/match-card";
 import SimulationReport from "@/features/matching/components/simulation-report";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import BrandLogo from "@/components/brand-logo";
-import { mockMatches } from "@/features/matching/testing/mocks/matches";
 import type { Match } from "@/features/matching/types/match";
+import { useProfiles } from "@/features/profiles/api/get-profiles";
+import type { UIProfile } from "@/features/profiles/types/ui-profile";
 
 interface ChatMessage {
   id: string;
@@ -18,8 +19,24 @@ interface ChatMessage {
   text: string;
 }
 
+// Convert UIProfile to Match type
+function uiProfileToMatch(profile: UIProfile): Match {
+  return {
+    id: profile.id,
+    name: profile.name,
+    age: profile.age,
+    occupation: profile.occupation,
+    location: profile.location,
+    avatar: profile.avatar,
+    tags: profile.tags,
+    status: "idle",
+    compatibilityScore: profile.compatibilityScore,
+  };
+}
+
 const Dashboard = () => {
-  const [matches, setMatches] = useState<Match[]>(mockMatches);
+  const { data: profiles, isLoading, error } = useProfiles();
+  const [matches, setMatches] = useState<Match[]>([]);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -35,10 +52,17 @@ const Dashboard = () => {
     {
       id: "bot-2",
       sender: "bot",
-      text: "Try asking “Who should I simulate next?” or tap Swipe to jump in."
+      text: 'Try asking "Who should I simulate next?" or tap Swipe to jump in.'
     }
   ]);
   const navigate = useNavigate();
+
+  // Initialize matches from real profile data when loaded
+  useEffect(() => {
+    if (profiles && profiles.length > 0 && matches.length === 0) {
+      setMatches(profiles.map(uiProfileToMatch));
+    }
+  }, [profiles, matches.length]);
 
   const handleRunSimulation = (matchId: string) => {
     setMatches(prev => 
@@ -126,6 +150,29 @@ const Dashboard = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery]);
+
+  // Handle loading and error states
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent" />
+          <p className="mt-4 text-muted-foreground">Loading profiles...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-destructive">Error loading profiles</p>
+          <p className="text-sm text-muted-foreground mt-2">{error.message}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

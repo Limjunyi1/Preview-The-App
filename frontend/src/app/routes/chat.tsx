@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { mockProfiles } from "@/features/chat/testing/mocks/profiles";
-import type { ChatProfile } from "@/features/chat/types/profile";
+import { useUIProfile } from "@/features/profiles/api/get-profiles";
+import type { UIProfile } from "@/features/profiles/types/ui-profile";
 
 type ChatMessage = {
   id: string;
@@ -30,24 +30,24 @@ const Chat = () => {
     {
       id: "welcome-2",
       sender: "user",
-      text: "Hi! I’d love that. How does Thursday evening look for you?",
+      text: "Hi! I'd love that. How does Thursday evening look for you?",
       timestamp: Date.now() - 1000 * 60 * 2
     }
   ]);
 
-  const profile = useMemo<ChatProfile>(() => {
-    const found = mockProfiles.find(p => p.id === id);
-    if (found) return found;
-    return {
-      id: id ?? "unknown",
-      name: "New Match",
-      age: 0,
-      occupation: "—",
-      location: "—",
-      avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=320&h=320&fit=crop",
-      tags: []
-    };
-  }, [id]);
+  // Fetch the profile data
+  const { data: profile, isLoading, error } = useUIProfile(id);
+
+  // Fallback profile if loading or error
+  const displayProfile: UIProfile = profile ?? {
+    id: id ?? "unknown",
+    name: "New Match",
+    age: 0,
+    occupation: "—",
+    location: "—",
+    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=320&h=320&fit=crop",
+    tags: []
+  };
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -91,20 +91,20 @@ const Chat = () => {
             </Button>
             <div className="flex items-center gap-3">
               <img
-                src={profile.avatar}
-                alt={profile.name}
+                src={displayProfile.avatar}
+                alt={displayProfile.name}
                 className="w-10 h-10 rounded-full object-cover border border-border"
               />
               <div className="leading-tight">
                 <div className="flex items-center gap-2">
-                  <p className="font-semibold text-foreground">{profile.name}{profile.age ? `, ${profile.age}` : ""}</p>
-                  {profile.compatibilityScore ? (
+                  <p className="font-semibold text-foreground">{displayProfile.name}{displayProfile.age ? `, ${displayProfile.age}` : ""}</p>
+                  {displayProfile.compatibilityScore ? (
                     <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-success/15 text-success border border-success/30">
-                      {profile.compatibilityScore}% match
+                      {displayProfile.compatibilityScore}% match
                     </span>
                   ) : null}
                 </div>
-                <p className="text-xs text-muted-foreground">{profile.occupation} • {profile.location}</p>
+                <p className="text-xs text-muted-foreground">{displayProfile.occupation} • {displayProfile.location}</p>
               </div>
             </div>
           </div>
@@ -126,7 +126,7 @@ const Chat = () => {
       <div className="flex-1">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
           <div className="flex flex-wrap gap-2 mb-4">
-            {profile.tags.map((tag, idx) => (
+            {displayProfile.tags.map((tag, idx) => (
               <Badge key={idx} variant="secondary" className="bg-secondary/50 text-xs">
                 {tag}
               </Badge>
@@ -173,7 +173,7 @@ const Chat = () => {
                 <Input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder={`Send a message to ${profile.name}...`}
+                  placeholder={`Send a message to ${displayProfile.name}...`}
                   className="flex-1 h-12 rounded-full"
                 />
                 <Button type="submit" size="icon" className="h-12 w-12 rounded-full" aria-label="Send message">
