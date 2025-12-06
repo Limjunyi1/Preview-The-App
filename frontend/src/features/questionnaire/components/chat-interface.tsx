@@ -565,6 +565,11 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
             
             // Check if onboarding is complete - navigate to swiping
             if (data.done && data.persona_json) {
+              // Update currentUser to match the saved profile filename
+              const displayName = (data.persona_json as { profile?: { display_name?: string } }).profile?.display_name;
+              if (displayName) {
+                setCurrentUser(displayName.toLowerCase());
+              }
               setTimeout(() => navigate("/swiping"), 1500);
             }
           },
@@ -652,6 +657,11 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
             
             // Check if onboarding is complete - navigate to swiping
             if (data.done && data.persona_json) {
+              // Update currentUser to match the saved profile filename
+              const displayName = (data.persona_json as { profile?: { display_name?: string } }).profile?.display_name;
+              if (displayName) {
+                setCurrentUser(displayName.toLowerCase());
+              }
               setTimeout(() => navigate("/swiping"), 1500);
             }
           },

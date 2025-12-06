@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   X, 
   Heart, 
@@ -8,51 +9,31 @@ import {
   ThumbsDown, 
   Sparkles, 
   CheckCircle,
-  Database,
-  TrendingUp
+  TrendingUp,
+  User
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useNavigate } from "react-router-dom";
 import type { Match } from "@/features/matching/types/match";
+import type { SimulationRun } from "@/features/simulation/api/use-simulation";
 
 interface SimulationReportProps {
   match: Match;
+  simulationResult?: SimulationRun | null;
   onClose: () => void;
 }
 
-const SimulationReport = ({ match, onClose }: SimulationReportProps) => {
-  const { name, age, occupation, avatar, compatibilityScore = 78 } = match;
+const SimulationReport = ({ match, simulationResult, onClose }: SimulationReportProps) => {
+  const navigate = useNavigate();
+  const { id, name, age, occupation, avatar, compatibilityScore = 78 } = match;
 
-  const highPoints = [
-    {
-      title: "Aligned on Work-Life Balance",
-      dialogue: [
-        { speaker: "Your Agent", message: "I really value having time for personal hobbies outside of work. It keeps me grounded." },
-        { speaker: `${name}'s Agent`, message: "Absolutely! I believe productivity comes from being well-rested and fulfilled. Weekends are sacred." }
-      ]
-    },
-    {
-      title: "Similar Communication Styles",
-      dialogue: [
-        { speaker: `${name}'s Agent`, message: "When something's bothering me, I prefer to address it directly but with empathy." },
-        { speaker: "Your Agent", message: "Same here! I'd rather have a difficult conversation early than let resentment build." }
-      ]
-    }
-  ];
-
-  const frictionPoints = [
-    {
-      title: "Different Financial Priorities",
-      description: "While you prioritize saving for long-term goals, they tend to focus more on experiences and present enjoyment.",
-      dialogue: [
-        { speaker: "Your Agent", message: "I like to save at least 30% of my income before considering discretionary spending." },
-        { speaker: `${name}'s Agent`, message: "Life's too short! I prefer investing in experiences and memories while I can." }
-      ]
-    }
-  ];
+  // Get current user's agent name from conversation
+  const currentUserAgent = simulationResult?.persona_a?.display_name?.toLowerCase() + "_agent";
+  const matchAgent = simulationResult?.persona_b?.display_name?.toLowerCase() + "_agent";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/50 backdrop-blur-sm animate-fade-in">
-      <div className="relative w-full max-w-3xl max-h-[90vh] bg-background rounded-2xl shadow-elevated overflow-hidden animate-scale-in">
+      <div className="relative w-full max-w-4xl max-h-[90vh] bg-background rounded-2xl shadow-elevated overflow-hidden animate-scale-in">
         {/* Header */}
         <div className="sticky top-0 z-10 bg-background border-b border-border p-6">
           <div className="flex items-start justify-between gap-4">
@@ -64,7 +45,7 @@ const SimulationReport = ({ match, onClose }: SimulationReportProps) => {
               />
               <div>
                 <h2 className="text-xl font-serif font-bold text-foreground">
-                  Simulation Report: {name}
+                  Date Preview: You & {name}
                 </h2>
                 <p className="text-sm text-muted-foreground">
                   {age} • {occupation}
@@ -78,151 +59,170 @@ const SimulationReport = ({ match, onClose }: SimulationReportProps) => {
         </div>
 
         {/* Scrollable Content */}
-        <div className="overflow-y-auto max-h-[calc(90vh-180px)] p-6 space-y-8">
+        <div className="overflow-y-auto max-h-[calc(90vh-180px)]">
           {/* Compatibility Score */}
-          <div className="p-6 rounded-2xl gradient-card border border-border">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-lg font-semibold text-foreground mb-1">Simulated Date Vibe</h3>
-                <p className="text-sm text-muted-foreground">Based on your values questionnaires</p>
+          <div className="p-6 border-b border-border">
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-primary/5 via-secondary/5 to-background border border-border">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-foreground mb-1">Simulated Date Vibe</h3>
+                  <p className="text-sm text-muted-foreground">AI agents chatted based on your profiles</p>
+                </div>
+                <div className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-full font-bold text-lg",
+                  compatibilityScore >= 75 ? "bg-success/10 text-success" :
+                  compatibilityScore >= 50 ? "bg-warning/10 text-warning" :
+                  "bg-destructive/10 text-destructive"
+                )}>
+                  <TrendingUp className="w-5 h-5" />
+                  {compatibilityScore}%
+                </div>
               </div>
-              <div className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-full font-bold text-lg",
-                compatibilityScore >= 75 ? "bg-success/10 text-success" :
-                compatibilityScore >= 50 ? "bg-warning/10 text-warning" :
-                "bg-destructive/10 text-destructive"
-              )}>
-                <TrendingUp className="w-5 h-5" />
-                {compatibilityScore}%
+              
+              {/* Score Bar */}
+              <div className="h-3 bg-muted rounded-full overflow-hidden mb-4">
+                <div 
+                  className={cn(
+                    "h-full rounded-full transition-all duration-500",
+                    compatibilityScore >= 75 ? "bg-success" :
+                    compatibilityScore >= 50 ? "bg-warning" :
+                    "bg-destructive"
+                  )}
+                  style={{ width: `${compatibilityScore}%` }}
+                />
               </div>
-            </div>
-            
-            {/* Score Bar */}
-            <div className="h-3 bg-muted rounded-full overflow-hidden mb-4">
-              <div 
-                className={cn(
-                  "h-full rounded-full transition-all duration-500",
-                  compatibilityScore >= 75 ? "bg-success" :
-                  compatibilityScore >= 50 ? "bg-warning" :
-                  "bg-destructive"
-                )}
-                style={{ width: `${compatibilityScore}%` }}
-              />
-            </div>
-            
-            <p className="text-muted-foreground">
-              <span className="font-medium text-foreground">Judge's Summary:</span> Your simulated 
-              first date showed strong emotional intelligence from both sides, with natural rapport 
-              building around shared lifestyle values. Some financial philosophy differences emerged 
-              but were discussed respectfully.
-            </p>
-          </div>
 
-          {/* High Points */}
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-success/10 flex items-center justify-center">
-                <CheckCircle className="w-4 h-4 text-success" />
-              </div>
-              <h3 className="text-lg font-semibold text-foreground">High Points</h3>
-              <Badge variant="secondary" className="bg-success/10 text-success">Green Flags</Badge>
-            </div>
-            
-            <div className="space-y-4">
-              {highPoints.map((point, index) => (
-                <div key={index} className="p-4 rounded-xl bg-success/5 border border-success/20">
-                  <h4 className="font-medium text-foreground mb-3">{point.title}</h4>
-                  <div className="space-y-2">
-                    {point.dialogue.map((line, i) => (
-                      <div 
-                        key={i} 
-                        className={cn(
-                          "flex gap-2",
-                          line.speaker === "Your Agent" ? "flex-row" : "flex-row-reverse"
-                        )}
-                      >
-                        <div className={cn(
-                          "max-w-[80%] p-3 rounded-xl text-sm",
-                          line.speaker === "Your Agent" 
-                            ? "bg-primary/10 rounded-tl-none" 
-                            : "bg-secondary/10 rounded-tr-none"
-                        )}>
-                          <p className="text-xs font-medium text-muted-foreground mb-1">
-                            {line.speaker}
-                          </p>
-                          <p className="text-foreground">{line.message}</p>
-                        </div>
-                      </div>
-                    ))}
+              {/* Trailer Info */}
+              {simulationResult?.trailer && (
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                  <div className="p-3 rounded-xl bg-success/5 border border-success/20">
+                    <div className="flex items-center gap-2 mb-1">
+                      <CheckCircle className="w-4 h-4 text-success" />
+                      <span className="text-xs font-medium text-success">High Point</span>
+                    </div>
+                    <p className="text-sm text-foreground">{simulationResult.trailer.high_point}</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-warning/5 border border-warning/20">
+                    <div className="flex items-center gap-2 mb-1">
+                      <AlertTriangle className="w-4 h-4 text-warning" />
+                      <span className="text-xs font-medium text-warning">Friction Point</span>
+                    </div>
+                    <p className="text-sm text-foreground">{simulationResult.trailer.friction_point}</p>
                   </div>
                 </div>
-              ))}
+              )}
+
+              {simulationResult?.trailer?.vibe && (
+                <p className="mt-4 text-sm text-muted-foreground">
+                  <span className="font-medium text-foreground">Vibe:</span> {simulationResult.trailer.vibe}
+                </p>
+              )}
             </div>
           </div>
 
-          {/* Friction Points */}
-          <div>
+          {/* Conversation History */}
+          <div className="p-6">
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-warning/10 flex items-center justify-center">
-                <AlertTriangle className="w-4 h-4 text-warning" />
+              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                <MessageSquare className="w-4 h-4 text-primary" />
               </div>
-              <h3 className="text-lg font-semibold text-foreground">Friction Points</h3>
-              <Badge variant="secondary" className="bg-warning/10 text-warning">Yellow Flags</Badge>
+              <h3 className="text-lg font-semibold text-foreground">Conversation Preview</h3>
+              <Badge variant="secondary" className="bg-primary/10 text-primary">
+                {simulationResult?.conversation?.length || 0} messages
+              </Badge>
             </div>
-            
-            <div className="space-y-4">
-              {frictionPoints.map((point, index) => (
-                <div key={index} className="p-4 rounded-xl bg-warning/5 border border-warning/20">
-                  <h4 className="font-medium text-foreground mb-2">{point.title}</h4>
-                  <p className="text-sm text-muted-foreground mb-3">{point.description}</p>
-                  <div className="space-y-2">
-                    {point.dialogue.map((line, i) => (
+
+            {/* Chat Messages */}
+            <div className="bg-muted/30 rounded-2xl border border-border p-4">
+              <ScrollArea className="h-[400px] pr-4">
+                <div className="space-y-4">
+                  {simulationResult?.conversation?.map((msg, index) => {
+                    const isCurrentUser = msg.speaker === currentUserAgent;
+                    const speakerName = isCurrentUser 
+                      ? `You (${simulationResult.persona_a?.display_name})` 
+                      : name;
+                    
+                    return (
                       <div 
-                        key={i} 
+                        key={index}
                         className={cn(
-                          "flex gap-2",
-                          line.speaker === "Your Agent" ? "flex-row" : "flex-row-reverse"
+                          "flex gap-3",
+                          isCurrentUser ? "flex-row-reverse" : "flex-row"
                         )}
                       >
+                        {/* Avatar */}
                         <div className={cn(
-                          "max-w-[80%] p-3 rounded-xl text-sm",
-                          line.speaker === "Your Agent" 
-                            ? "bg-primary/10 rounded-tl-none" 
-                            : "bg-secondary/10 rounded-tr-none"
+                          "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0",
+                          isCurrentUser 
+                            ? "bg-primary text-primary-foreground" 
+                            : "bg-secondary"
                         )}>
-                          <p className="text-xs font-medium text-muted-foreground mb-1">
-                            {line.speaker}
+                          {isCurrentUser ? (
+                            <User className="w-4 h-4" />
+                          ) : (
+                            <img 
+                              src={avatar} 
+                              alt={name} 
+                              className="w-8 h-8 rounded-full object-cover"
+                            />
+                          )}
+                        </div>
+
+                        {/* Message Bubble */}
+                        <div className={cn(
+                          "max-w-[75%] group",
+                          isCurrentUser ? "items-end" : "items-start"
+                        )}>
+                          <p className={cn(
+                            "text-xs font-medium mb-1",
+                            isCurrentUser ? "text-right text-primary" : "text-left text-muted-foreground"
+                          )}>
+                            {speakerName}
                           </p>
-                          <p className="text-foreground">{line.message}</p>
+                          <div className={cn(
+                            "px-4 py-3 rounded-2xl text-sm leading-relaxed",
+                            isCurrentUser 
+                              ? "bg-primary text-primary-foreground rounded-tr-md" 
+                              : "bg-card border border-border text-foreground rounded-tl-md"
+                          )}>
+                            {msg.text}
+                          </div>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+                    );
+                  })}
 
-          {/* Agent Tool Use */}
-          <div className="p-4 rounded-xl bg-muted border border-border">
-            <div className="flex items-center gap-2 mb-2">
-              <Database className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-medium text-foreground">Agent Tool Usage</span>
+                  {/* Empty state */}
+                  {(!simulationResult?.conversation || simulationResult.conversation.length === 0) && (
+                    <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                      <Sparkles className="w-8 h-8 mb-3 opacity-50" />
+                      <p className="text-sm">No conversation data available</p>
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="outline" className="gap-1">
-                <Sparkles className="w-3 h-3" />
-                Queried: Financial values
-              </Badge>
-              <Badge variant="outline" className="gap-1">
-                <Sparkles className="w-3 h-3" />
-                Queried: Lifestyle preferences
-              </Badge>
-              <Badge variant="outline" className="gap-1">
-                <Sparkles className="w-3 h-3" />
-                Queried: Communication style
-              </Badge>
-            </div>
+
+            {/* Icebreakers */}
+            {simulationResult?.trailer?.icebreakers && simulationResult.trailer.icebreakers.length > 0 && (
+              <div className="mt-6">
+                <h4 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-primary" />
+                  Suggested Icebreakers
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {simulationResult.trailer.icebreakers.map((icebreaker, i) => (
+                    <Badge 
+                      key={i} 
+                      variant="outline" 
+                      className="px-3 py-1.5 text-sm cursor-pointer hover:bg-primary/10 hover:border-primary transition-colors"
+                    >
+                      {icebreaker}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -233,8 +233,15 @@ const SimulationReport = ({ match, onClose }: SimulationReportProps) => {
               <ThumbsDown className="w-4 h-4" />
               Pass
             </Button>
-            <Button variant="hero" className="flex-1 gap-2">
-              <MessageSquare className="w-4 h-4" />
+            <Button 
+              variant="hero" 
+              className="flex-1 gap-2"
+              onClick={() => {
+                onClose();
+                navigate(`/chat/${id}`);
+              }}
+            >
+              <Heart className="w-4 h-4" />
               Message {name}
             </Button>
           </div>

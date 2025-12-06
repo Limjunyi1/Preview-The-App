@@ -37,10 +37,13 @@ const Swiping = () => {
   // Get current user from localStorage
   const currentUser = getCurrentUser();
 
-  // Redirect to login if no current user
+  // Redirect to login if no current user, or questionnaire if old user format
   useEffect(() => {
     if (!currentUser) {
       navigate("/login");
+    } else if (currentUser.startsWith("user-")) {
+      // Old format user ID - needs re-onboarding
+      navigate("/questionnaire");
     }
   }, [currentUser, navigate]);
 

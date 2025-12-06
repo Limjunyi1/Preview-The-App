@@ -403,9 +403,12 @@ def fetch_simulation(run_id: str) -> SimulationRun:
 def simulate_by_user(body: SimulateByUserRequest) -> SimulationRun:
     try:
         profile_a = _read_profile(body.user_a)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Profile not found: {body.user_a}")
+    try:
         profile_b = _read_profile(body.user_b)
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="One or both profiles not found")
+        raise HTTPException(status_code=404, detail=f"Profile not found: {body.user_b}")
 
     persona_a = _persona_from_profile(profile_a)
     persona_b = _persona_from_profile(profile_b)
