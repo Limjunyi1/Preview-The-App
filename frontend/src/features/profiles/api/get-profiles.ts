@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { FullProfileSchema, type FullProfile } from "../types/profile-schema";
 import { fullProfileToUIProfile, type UIProfile } from "../types/ui-profile";
 import { fullProfileToSwipeProfile, type SwipeProfile } from "../types/swipe-profile";
-import { apiFetch } from "@/lib/api-client";
 
 /**
  * Manifest type for the profiles index
@@ -28,7 +27,7 @@ async function fetchProfileManifest(): Promise<ProfileManifest> {
 /**
  * Fetch a single profile by ID from the static assets
  */
-async function fetchFullProfileFromStatic(profileId: string): Promise<FullProfile> {
+async function fetchFullProfile(profileId: string): Promise<FullProfile> {
   const response = await fetch(`/json/${profileId}.json`);
   if (!response.ok) {
     throw new Error(`Failed to fetch profile ${profileId}: ${response.statusText}`);
@@ -51,29 +50,6 @@ async function fetchFullProfileFromStatic(profileId: string): Promise<FullProfil
  */
 function hasProfileImage(profile: FullProfile): boolean {
   return !!profile.profile_path && profile.profile_path.trim() !== "";
-}
-
-/**
- * Fetch a single profile by ID - tries backend API first, falls back to static files
- */
-async function fetchFullProfile(profileId: string): Promise<FullProfile> {
-  // Try backend API first (for dynamically created profiles)
-  try {
-    const response = await apiFetch<{ profile: FullProfile }>(`/profiles/${profileId}`);
-    const data = response.profile;
-    
-    // Validate the data against the schema
-    const parsed = FullProfileSchema.safeParse(data);
-    if (parsed.success) {
-      return parsed.data;
-    }
-    // If validation fails, fall through to static files
-  } catch {
-    // Backend not available or profile not found, try static files
-  }
-  
-  // Fall back to static files
-  return fetchFullProfileFromStatic(profileId);
 }
 
 /**
