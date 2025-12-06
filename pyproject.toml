@@ -17,4 +17,5 @@ dependencies = [
 [tool.uv.workspace]
 members = [
     "backend/vibe_check",
+    "backend/magic_mirror",
 ]
