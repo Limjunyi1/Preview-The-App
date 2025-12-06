@@ -14,7 +14,7 @@ import { useRecordSwipe } from "@/features/swiping/api/use-swipes";
 import { getCurrentUser, getUnswipedProfiles } from "@/lib/storage";
 
 // ============================================================================
-// Orientation & Location Filtering Utilities
+// Orientation Filtering Utilities
 // ============================================================================
 
 /**
@@ -90,18 +90,6 @@ function isOrientationCompatible(
   return userSeeksCandidate && candidateSeeksUser;
 }
 
-/**
- * Check if two locations match (case-insensitive contains match)
- * Examples: "Ampang, Kuala Lumpur" matches "Kuala Lumpur"
- */
-function isLocationCompatible(userLocation: string, candidateLocation: string): boolean {
-  const userLoc = userLocation.toLowerCase();
-  const candidateLoc = candidateLocation.toLowerCase();
-  
-  // Either location contains the other
-  return userLoc.includes(candidateLoc) || candidateLoc.includes(userLoc);
-}
-
 type SwipeDirection = "left" | "right";
 
 // Use the SwipeProfile type from the profiles feature
@@ -133,7 +121,7 @@ const Swiping = () => {
   }, [currentUser, navigate]);
 
   // Fetch current user's full profile for filtering
-  const { data: currentUserProfile, isLoading: isLoadingUserProfile } = useFullProfile(currentUser ?? undefined);
+  const { data: currentUserProfile } = useFullProfile(currentUser ?? undefined);
 
   // Fetch real profile data
   const { data: swipeProfiles, isLoading: isLoadingProfiles, error } = useSwipeProfiles();
@@ -141,19 +129,20 @@ const Swiping = () => {
   // Record swipe mutation
   const recordSwipeMutation = useRecordSwipe();
 
-  // Combined loading state
-  const isLoading = isLoadingProfiles || isLoadingUserProfile;
+  // Only wait for swipe profiles (user profile is for optional filtering)
+  const isLoading = isLoadingProfiles;
 
   // Filter to only show unswiped, orientation-compatible profiles
   const profiles = useMemo(() => {
-    if (!swipeProfiles || !currentUser || !currentUserProfile) return [];
+    if (!swipeProfiles || !currentUser) return [];
     
     const allProfileIds = swipeProfiles.map((p) => p.id);
     const unswipedIds = getUnswipedProfiles(currentUser, allProfileIds);
     
-    // Get current user's filtering criteria
-    const userGender = currentUserProfile.profile.gender;
-    const userOrientation = currentUserProfile.profile.orientation;
+    // Get current user's filtering criteria (if profile loaded)
+    const userGender = currentUserProfile?.profile.gender;
+    const userOrientation = currentUserProfile?.profile.orientation;
+    const canFilterByOrientation = userGender && userOrientation;
     
     return swipeProfiles
       .filter((p) => {
@@ -163,9 +152,11 @@ const Swiping = () => {
         // Only show unswiped profiles
         if (!unswipedIds.includes(p.id)) return false;
         
-        // Check orientation compatibility (mutual attraction possible)
-        if (!isOrientationCompatible(userGender, userOrientation, p.gender, p.orientation)) {
-          return false;
+        // Check orientation compatibility if user profile is available
+        if (canFilterByOrientation) {
+          if (!isOrientationCompatible(userGender, userOrientation, p.gender, p.orientation)) {
+            return false;
+          }
         }
         
         return true;
