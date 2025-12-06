@@ -17,6 +17,10 @@ export interface SwipeProfile {
   friction: string;
   prompt: string;
   vibe: string;
+  // Filtering fields
+  gender: string;
+  orientation: string;
+  location: string;
 }
 
 /**
@@ -59,6 +63,10 @@ export function fullProfileToSwipeProfile(
     friction,
     prompt,
     vibe,
+    // Filtering fields
+    gender: fullProfile.profile.gender,
+    orientation: fullProfile.profile.orientation,
+    location: fullProfile.profile.location,
   };
 }
 

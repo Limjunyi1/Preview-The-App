@@ -14,6 +14,9 @@ import {
   useOnboardingReply,
   useTranscribeUpload,
 } from "@/features/onboarding/api/use-onboarding";
+import { useUpdateProfile } from "@/features/profiles/api/use-current-user-profile";
+import type { FullProfile } from "@/features/profiles/types/profile-schema";
+import ProfileEditor from "@/features/onboarding/components/profile-editor";
 
 interface Message {
   id: string;
@@ -37,14 +40,6 @@ interface ChatInterfaceProps {
 }
 
 type ChatStatus = "chat" | "processing" | "summary";
-
-type PersonaSummary = {
-  title: string;
-  subtitle: string;
-  traits: string[];
-  goals: string[];
-  recommendations: string[];
-};
 
 // Extracted and memoized components to prevent re-renders
 
@@ -156,77 +151,6 @@ const ProcessingPanel = memo(({ progress }: ProcessingPanelProps) => (
 ));
 ProcessingPanel.displayName = "ProcessingPanel";
 
-interface PersonaReportProps {
-  persona: PersonaSummary;
-  onFinish: () => void;
-}
-
-const PersonaReport = memo(({ persona, onFinish }: PersonaReportProps) => (
-  <div className="animate-fade-in-up">
-    <Card className="shadow-elevated border-primary/20">
-      <CardHeader className="space-y-2">
-        <CardTitle className="text-xl flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-primary" />
-          {persona.title}
-        </CardTitle>
-        <p className="text-sm text-muted-foreground">{persona.subtitle}</p>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <h4 className="text-sm font-semibold text-foreground">Personality signals</h4>
-          <ul className="space-y-2 text-sm text-muted-foreground">
-            {persona.traits.map((trait, idx) => (
-              <li key={idx} className="flex gap-2">
-                <span className="text-primary">•</span>
-                <span>{trait}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="space-y-2">
-          <h4 className="text-sm font-semibold text-foreground">Goals & focus</h4>
-          <ul className="space-y-2 text-sm text-muted-foreground">
-            {persona.goals.map((goal, idx) => (
-              <li key={idx} className="flex gap-2">
-                <span className="text-primary">•</span>
-                <span>{goal}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="space-y-2">
-          <h4 className="text-sm font-semibold text-foreground">Recommendations</h4>
-          <ul className="space-y-2 text-sm text-muted-foreground">
-            {persona.recommendations.map((rec, idx) => (
-              <li key={idx} className="flex gap-2">
-                <span className="text-primary">•</span>
-                <span>{rec}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="pt-2 flex flex-wrap gap-2">
-          <Badge variant="outline" className="border-primary/40 text-primary">Personality</Badge>
-          <Badge variant="outline" className="border-primary/40 text-primary">Goals</Badge>
-          <Badge variant="outline" className="border-primary/40 text-primary">Growth plan</Badge>
-        </div>
-
-        <div className="pt-2 flex justify-end">
-          <Button
-            onClick={onFinish}
-            className="gradient-primary text-primary-foreground shadow-soft hover:shadow-elevated px-4"
-          >
-            Finish onboarding
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  </div>
-));
-PersonaReport.displayName = "PersonaReport";
 
 interface ChatHeaderProps {
   answeredQuestions: number;
@@ -323,7 +247,7 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<ChatStatus>("chat");
   const [processingProgress, setProcessingProgress] = useState(0);
-  const [persona, setPersona] = useState<PersonaSummary | null>(null);
+  const [fullProfile, setFullProfile] = useState<FullProfile | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -340,6 +264,7 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
   const onboardingStartMutation = useOnboardingStart();
   const onboardingReplyMutation = useOnboardingReply();
   const transcribeUploadMutation = useTranscribeUpload();
+  const updateProfileMutation = useUpdateProfile();
 
   const totalQuestions = categories.reduce((acc, cat) => acc + cat.questions.length, 0);
   const answeredQuestions = Object.keys(answers).length;
@@ -422,29 +347,51 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
     });
   };
 
-  const buildPersonaSummary = useCallback((): PersonaSummary => {
+  const buildFallbackProfile = useCallback((): FullProfile => {
     const pick = (catId: string, questionIndex: number) =>
-      answers[`${catId}-${questionIndex}`] ?? "—";
+      answers[`${catId}-${questionIndex}`] ?? "";
 
+    // Build a minimal FullProfile from frontend-only answers
     return {
-      title: "Aligned Explorer",
-      subtitle: "Balanced, intentional, and ready for meaningful connection",
-      traits: [
-        `Financial philosophy: ${pick("financial", 0)}; risk stance: ${pick("financial", 1)}`,
-        `Lifestyle vision: ${pick("lifestyle", 0)}; kids: ${pick("lifestyle", 1)}; stability: ${pick("lifestyle", 2)}`,
-        `Conflict style: ${pick("conflict", 0)} with ${pick("conflict", 1)} communication; stress response: ${pick("conflict", 2)}`,
-        `Values & boundaries: ${pick("values", 0)}; alone time: ${pick("values", 1)}; growth: ${pick("values", 2)}`
-      ],
-      goals: [
-        "Find partners whose values and lifestyle pace stay in sync with yours",
-        "Create agreements around finances and space that feel transparent and fair",
-        "Keep communication warm but clear, especially around travel, stability, and alone time"
-      ],
-      recommendations: [
-        "Start with shared planning rituals: weekly check-ins on goals, budget, and quality time",
-        "Design travel or relocation rules that align with your stability preferences",
-        "Use conflict scripts: lead with needs, name feelings, propose one actionable next step"
-      ]
+      profile: {
+        display_name: "New User",
+        age: 25,
+        gender: "Not specified",
+        location: "Not specified",
+        orientation: "Looking for meaningful connections",
+      },
+      relationship: {
+        intent: "Finding a compatible partner",
+      },
+      lifestyle: {
+        social_energy: pick("lifestyle", 0) || null,
+        weekend_default: null,
+        travel_style: pick("lifestyle", 2) || null,
+        work_life_balance: null,
+        pets: null,
+      },
+      values: {
+        family_closeness: null,
+        money_mindset: pick("financial", 0) || null,
+        openness_to_kids: pick("lifestyle", 1) || null,
+        faith_importance: null,
+        political_engagement: null,
+        other_values: [pick("values", 0), pick("values", 2)].filter(Boolean),
+      },
+      communication: {
+        conflict_style: pick("conflict", 0) || null,
+        texting_cadence: pick("conflict", 1) || null,
+        love_languages: [],
+      },
+      empathy_accountability: {
+        past_relationship_reflection: null,
+        accountability_style: null,
+        red_flags_detected: [],
+      },
+      dealbreakers: [],
+      must_haves: [],
+      agent_persona: {},
+      AI_summary: "Profile created from onboarding questionnaire",
     };
   }, [answers]);
 
@@ -474,14 +421,14 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
         setProcessingProgress(step.progress);
         if (index === steps.length - 1) {
           setTimeout(() => {
-            const personaSummary = buildPersonaSummary();
-            setPersona(personaSummary);
+            const fallbackProfile = buildFallbackProfile();
+            setFullProfile(fallbackProfile);
             setStatus("summary");
             setMessages(prev => [
               ...prev,
               {
                 id: `persona-ready-${Date.now()}`,
-                content: "Your AI persona is ready. Here's your personalized personality and goals report.",
+                content: "Perfect! I've created your profile. Take a quick look, then you're ready to start swiping! 💫",
                 sender: "ai",
                 timestamp: new Date()
               }
@@ -490,7 +437,7 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
         }
       }, step.delay);
     });
-  }, [status, buildPersonaSummary]);
+  }, [status, buildFallbackProfile]);
 
   // Use ref to hold askQuestion to avoid circular dependency in useCallback
   const askQuestionRef = useRef<(categoryIndex?: number, questionIndex?: number) => void>(() => {});
@@ -587,13 +534,8 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
               },
             ]);
             
-            // Check if onboarding is complete - navigate to swiping
+            // Check if onboarding is complete - show profile editor
             if (data.done && data.persona_json) {
-              // Update currentUser to match the saved profile filename
-              const displayName = (data.persona_json as { profile?: { display_name?: string } }).profile?.display_name;
-              if (displayName) {
-                setCurrentUser(displayName.toLowerCase());
-              }
               setTimeout(() => navigate("/swiping"), 1500);
             }
           },
@@ -679,13 +621,8 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
               },
             ]);
             
-            // Check if onboarding is complete - navigate to swiping
+            // Check if onboarding is complete - show profile editor
             if (data.done && data.persona_json) {
-              // Update currentUser to match the saved profile filename
-              const displayName = (data.persona_json as { profile?: { display_name?: string } }).profile?.display_name;
-              if (displayName) {
-                setCurrentUser(displayName.toLowerCase());
-              }
               setTimeout(() => navigate("/swiping"), 1500);
             }
           },
@@ -836,9 +773,22 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
     setInputValue(value);
   }, []);
 
-  const handleFinish = useCallback(() => {
-    navigate("/dashboard");
-  }, [navigate]);
+  const handleProfileSave = useCallback((updatedProfile: FullProfile) => {
+    updateProfileMutation.mutate(
+      { userId, profile: updatedProfile },
+      {
+        onSuccess: () => {
+          // Go directly to swiping so user can rank their preferences
+          navigate("/swiping");
+        },
+        onError: (error) => {
+          console.error("Failed to save profile:", error);
+          // Still navigate on error - profile was already saved during onboarding
+          navigate("/swiping");
+        },
+      }
+    );
+  }, [userId, updateProfileMutation, navigate]);
 
   return (
     <div className="min-h-screen bg-background flex flex-col relative">
@@ -872,8 +822,12 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
               ))}
               {isTyping && <TypingIndicator />}
               {status === "processing" && <ProcessingPanel progress={processingProgress} />}
-              {status === "summary" && persona && (
-                <PersonaReport persona={persona} onFinish={handleFinish} />
+              {status === "summary" && fullProfile && (
+                <ProfileEditor 
+                  profile={fullProfile} 
+                  onSave={handleProfileSave}
+                  isSaving={updateProfileMutation.isPending}
+                />
               )}
               <div ref={messagesEndRef} />
             </div>

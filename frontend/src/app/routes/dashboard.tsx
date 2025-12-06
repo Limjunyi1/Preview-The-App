@@ -12,13 +12,30 @@ import BrandLogo from "@/components/brand-logo";
 import type { Match } from "@/features/matching/types/match";
 import { useProfiles } from "@/features/profiles/api/get-profiles";
 import type { UIProfile } from "@/features/profiles/types/ui-profile";
-import { getCurrentUser, clearCurrentUser } from "@/lib/storage";
+import { getCurrentUser, clearCurrentUser, getSwipes } from "@/lib/storage";
 import { useMatches, getMatchedUserId } from "@/features/swiping/api/use-matches";
 import { useBestieStart, useBestieReply } from "@/features/bestie/api/use-bestie";
 import { useRunSimulation, type SimulationRun } from "@/features/simulation/api/use-simulation";
+import { useStableMatchingMutation, getStableMatchForUser, type StableMatchingResponse } from "@/features/matching/api/use-stable-matching";
 import { StatsCards } from "@/features/dashboard/components/stats-cards";
 import { ActivityFeed } from "@/features/dashboard/components/activity-feed";
 import { Separator } from "@/components/ui/separator";
+
+/**
+ * Extract user's right swipes ordered by timestamp (earliest first = most preferred)
+ */
+function getUserPreferences(userId: string): string[] {
+  const swipes = getSwipes();
+  
+  // Filter to only right swipes from this user
+  const rightSwipes = swipes
+    .filter((s) => s.from === userId && s.direction === "right")
+    // Sort by timestamp ascending (earliest first = most preferred)
+    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  
+  // Return just the profile IDs in order
+  return rightSwipes.map((s) => s.to);
+}
 
 interface ChatMessage {
   id: string;
@@ -71,6 +88,10 @@ const Dashboard = () => {
   
   // Fetch user's matches from localStorage
   const { data: userMatches } = useMatches(currentUser);
+  
+  // Stable matching mutation (triggered by user action)
+  const stableMatchingMutation = useStableMatchingMutation();
+  const [stableMatchingData, setStableMatchingData] = useState<StableMatchingResponse | null>(null);
   
   // State for match cards (combines profiles + match status)
   const [matchCards, setMatchCards] = useState<Match[]>([]);
@@ -270,6 +291,23 @@ const Dashboard = () => {
   const handleLogout = () => {
     clearCurrentUser();
     navigate("/login");
+  };
+
+  // Trigger stable matching with user's swipe preferences
+  const handleFindMatch = () => {
+    if (!currentUser) return;
+    
+    // Get user's preferences from right swipes (ordered by timestamp)
+    const preferences = getUserPreferences(currentUser);
+    
+    stableMatchingMutation.mutate(
+      { currentUserId: currentUser, preferences },
+      {
+        onSuccess: (data) => {
+          setStableMatchingData(data);
+        },
+      }
+    );
   };
 
   const quickActions = [
@@ -481,16 +519,66 @@ const Dashboard = () => {
                 className="pl-10"
               />
             </div>
-            <Button
-              className="ml-auto"
-              variant="default"
-              onClick={() => navigate("/swiping")}
-            >
-              Swipe
-            </Button>
+            <div className="ml-auto flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={handleFindMatch}
+                disabled={stableMatchingMutation.isPending}
+              >
+                {stableMatchingMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Finding...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Find Match
+                  </>
+                )}
+              </Button>
+              <Button
+                variant="default"
+                onClick={() => navigate("/swiping")}
+              >
+                Swipe
+              </Button>
+            </div>
           </div>
 
+          {/* Algorithm Suggested Match */}
+          {(() => {
+            const suggestedMatchId = getStableMatchForUser(stableMatchingData ?? undefined);
+            const suggestedMatch = suggestedMatchId ? matchCards.find(m => m.id === suggestedMatchId) : null;
+            
+            if (suggestedMatch) {
+              return (
+                <div className="mb-8">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Sparkles className="w-5 h-5 text-primary" />
+                    <h2 className="text-lg font-semibold text-foreground">Algorithm Suggested</h2>
+                    <Badge variant="secondary" className="text-xs">Gale-Shapley</Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Our stable matching algorithm found your optimal match based on mutual compatibility preferences.
+                  </p>
+                  <div className="max-w-sm">
+                    <MatchCard
+                      match={suggestedMatch}
+                      onRunSimulation={handleRunSimulation}
+                      onViewReport={handleViewReport}
+                    />
+                  </div>
+                </div>
+              );
+            }
+            return null;
+          })()}
+
           {/* Match Grid */}
+          <div className="flex items-center gap-2 mb-4">
+            <h2 className="text-lg font-semibold text-foreground">All Profiles</h2>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {paginatedMatches.map((match) => (
               <MatchCard

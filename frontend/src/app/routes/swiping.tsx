@@ -8,10 +8,87 @@ import { Badge } from "@/components/ui/badge";
 import BrandLogo from "@/components/brand-logo";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { useSwipeProfiles } from "@/features/profiles/api/get-profiles";
+import { useSwipeProfiles, useFullProfile } from "@/features/profiles/api/get-profiles";
 import type { SwipeProfile } from "@/features/profiles/types/swipe-profile";
 import { useRecordSwipe } from "@/features/swiping/api/use-swipes";
 import { getCurrentUser, getUnswipedProfiles, clearSwipesForUser } from "@/lib/storage";
+
+// ============================================================================
+// Orientation Filtering Utilities
+// ============================================================================
+
+/**
+ * Normalize gender string to a standard format
+ */
+function normalizeGender(gender: string): "male" | "female" | "other" {
+  const g = gender.toLowerCase();
+  if (g.includes("male") && !g.includes("female")) return "male";
+  if (g.includes("female") || g.includes("woman")) return "female";
+  return "other";
+}
+
+/**
+ * Parse orientation string to determine what genders the person is seeking
+ * Examples: "straight, interested in males" -> ["male"]
+ *           "bisexual" -> ["male", "female"]
+ */
+function getSeekingGenders(orientation: string, userGender: string): string[] {
+  const o = orientation.toLowerCase();
+  const normalizedUserGender = normalizeGender(userGender);
+  
+  // Handle bisexual/pansexual
+  if (o.includes("bisexual") || o.includes("pansexual") || o.includes("any")) {
+    return ["male", "female", "other"];
+  }
+  
+  // Check for explicit mentions
+  const seeking: string[] = [];
+  if (o.includes("male") || o.includes("men") || o.includes("man")) {
+    seeking.push("male");
+  }
+  if (o.includes("female") || o.includes("women") || o.includes("woman")) {
+    seeking.push("female");
+  }
+  
+  // Handle "straight" based on user's gender
+  if (o.includes("straight") || o.includes("heterosexual")) {
+    if (normalizedUserGender === "male") {
+      seeking.push("female");
+    } else if (normalizedUserGender === "female") {
+      seeking.push("male");
+    }
+  }
+  
+  // Handle "gay" or "lesbian"
+  if (o.includes("gay") || o.includes("lesbian") || o.includes("homosexual")) {
+    seeking.push(normalizedUserGender);
+  }
+  
+  return seeking.length > 0 ? seeking : ["male", "female", "other"]; // Default to all if unclear
+}
+
+/**
+ * Check if two users are orientation-compatible (mutual attraction possible)
+ */
+function isOrientationCompatible(
+  userGender: string,
+  userOrientation: string,
+  candidateGender: string,
+  candidateOrientation: string
+): boolean {
+  const normalizedUserGender = normalizeGender(userGender);
+  const normalizedCandidateGender = normalizeGender(candidateGender);
+  
+  // Get what each person is seeking
+  const userSeeking = getSeekingGenders(userOrientation, userGender);
+  const candidateSeeking = getSeekingGenders(candidateOrientation, candidateGender);
+  
+  // Check mutual compatibility: user seeks candidate's gender AND candidate seeks user's gender
+  const userSeeksCandidate = userSeeking.includes(normalizedCandidateGender);
+  const candidateSeeksUser = candidateSeeking.includes(normalizedUserGender);
+  
+  return userSeeksCandidate && candidateSeeksUser;
+}
 
 type SwipeDirection = "left" | "right";
 
@@ -47,24 +124,52 @@ const Swiping = () => {
     }
   }, [currentUser, navigate]);
 
+  // Fetch current user's full profile for filtering
+  const { data: currentUserProfile } = useFullProfile(currentUser ?? undefined);
+
   // Fetch real profile data
-  const { data: swipeProfiles, isLoading, error } = useSwipeProfiles();
+  const { data: swipeProfiles, isLoading: isLoadingProfiles, error } = useSwipeProfiles();
 
   // Record swipe mutation
   const recordSwipeMutation = useRecordSwipe();
 
-  // Filter to only show unswiped profiles and transform to Profile[] with numeric IDs
+  // Only wait for swipe profiles (user profile is for optional filtering)
+  const isLoading = isLoadingProfiles;
+
+  // Filter to only show unswiped, orientation-compatible profiles
   const profiles = useMemo(() => {
     if (!swipeProfiles || !currentUser) return [];
+    
     const allProfileIds = swipeProfiles.map((p) => p.id);
     const unswipedIds = getUnswipedProfiles(currentUser, allProfileIds);
+    
+    // Get current user's filtering criteria (if profile loaded)
+    const userGender = currentUserProfile?.profile.gender;
+    const userOrientation = currentUserProfile?.profile.orientation;
+    const canFilterByOrientation = userGender && userOrientation;
+    
     return swipeProfiles
-      .filter((p) => unswipedIds.includes(p.id))
+      .filter((p) => {
+        // Exclude self
+        if (p.id === currentUser) return false;
+        
+        // Only show unswiped profiles
+        if (!unswipedIds.includes(p.id)) return false;
+        
+        // Check orientation compatibility if user profile is available
+        if (canFilterByOrientation) {
+          if (!isOrientationCompatible(userGender, userOrientation, p.gender, p.orientation)) {
+            return false;
+          }
+        }
+        
+        return true;
+      })
       .map((p, i) => ({
         ...p,
         numericId: i,
       }));
-  }, [swipeProfiles, currentUser, resetNonce]);
+  }, [swipeProfiles, currentUser, currentUserProfile, resetNonce]);
 
   const [cards, setCards] = useState<Profile[]>(profiles);
 

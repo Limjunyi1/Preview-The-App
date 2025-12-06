@@ -23,6 +23,8 @@ from .oboarding_agent import OnboardingAgent
 from .simulation.models import PersonaSummary, SimulationRequest, SimulationRun
 from .simulation.simulation import run_simulation
 from .simulation.storage import get_run, list_runs, save_run
+from .vibe_check.preference_generator import get_preference_rankings
+from .vibe_check.algos.deferred_acceptance import da
 
 
 # ------------------------------------------------------------------------------
@@ -204,6 +206,18 @@ class TranscribeStopResponse(BaseModel):
     message: str = "transcription complete"
 
 
+class StableMatchingRequest(BaseModel):
+    current_user_id: str = Field(..., description="ID of the current logged-in user")
+    preferences: Optional[list[str]] = Field(None, description="Ordered list of preferred profile IDs from user's right swipes")
+
+
+class StableMatchingResponse(BaseModel):
+    matches: dict[str, str]  # user_id -> matched_user_id
+    unmatched: list[str]
+    algorithm: str = "gale-shapley"
+    current_user_match: Optional[str] = None  # The match for the requesting user
+
+
 class TranscribeUploadResponse(BaseModel):
     transcript: str
     duration_seconds: Optional[float] = None
@@ -297,10 +311,9 @@ def _finalize_onboarding(session_id: str, reply_text: Optional[str] = None) -> d
     if persona is None:
         raise HTTPException(status_code=500, detail="Failed to parse persona JSON")
     
-    # Use display_name (lowercase) as filename, fallback to user_id
-    display_name = persona.get("profile", {}).get("display_name")
-    profile_id = display_name.lower() if display_name else user_id
-    _write_profile(profile_id, persona)
+    # Always use the original user_id as the filename to maintain consistency
+    # with subsequent profile updates from the frontend
+    _write_profile(user_id, persona)
     onboarding_sessions.pop(session_id, None)
     return persona
 
@@ -427,6 +440,75 @@ def simulate_by_user(body: SimulateByUserRequest) -> SimulationRun:
     run = run_simulation(req, model_name=MODEL_NAME)
     save_run(run)
     return run
+
+
+# ------------------------------------------------------------------------------
+# Stable Matching (Gale-Shapley)
+# ------------------------------------------------------------------------------
+@app.post("/matching/stable", response_model=StableMatchingResponse)
+def stable_matching(body: StableMatchingRequest) -> StableMatchingResponse:
+    """
+    Run Gale-Shapley stable matching algorithm.
+    
+    Uses hybrid approach:
+    - Static seed profiles: hardcoded preferences (no AI)
+    - New users: uses provided swipe preferences (or falls back to AI)
+    
+    Returns stable matches optimized for the current user.
+    """
+    current_user_id = body.current_user_id
+    user_preferences = body.preferences  # Ordered list of preferred profile IDs from swipes
+    
+    try:
+        # Generate preferences (hybrid: hardcoded + swipe-based for new user)
+        men_prefs, women_prefs = get_preference_rankings(current_user_id, user_preferences=user_preferences)
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate preferences: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Preference generation error: {str(e)}")
+    
+    # Check if we have enough profiles for matching
+    if not men_prefs or not women_prefs:
+        raise HTTPException(
+            status_code=400, 
+            detail="Not enough compatible profiles for matching. Need at least one profile in each group."
+        )
+    
+    # Run deferred acceptance (men propose)
+    two_sided, one_sided = da(men_prefs, women_prefs)
+    
+    # one_sided: {man_id: woman_id} - filter out self-matches (unmatched)
+    matches = {k: v for k, v in one_sided.items() if k != v}
+    unmatched = [k for k, v in one_sided.items() if k == v]
+    
+    # Also check women who didn't get matched
+    matched_women = set(matches.values())
+    all_women = set(women_prefs.keys())
+    unmatched.extend(all_women - matched_women)
+    
+    # Find current user's match
+    current_user_match = None
+    if current_user_id in matches:
+        current_user_match = matches[current_user_id]
+    else:
+        # Check if current user is a receiver (woman)
+        for proposer, receiver in matches.items():
+            if receiver == current_user_id:
+                current_user_match = proposer
+                break
+    
+    return StableMatchingResponse(
+        matches=matches,
+        unmatched=list(unmatched),
+        algorithm="gale-shapley",
+        current_user_match=current_user_match,
+    )
+
+
+@app.get("/matching/stable/{user_id}", response_model=StableMatchingResponse)
+def get_stable_matching(user_id: str) -> StableMatchingResponse:
+    """GET version of stable matching for easy testing."""
+    return stable_matching(StableMatchingRequest(current_user_id=user_id))
 
 
 # ------------------------------------------------------------------------------
