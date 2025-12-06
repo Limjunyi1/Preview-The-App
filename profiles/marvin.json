@@ -1,0 +1,55 @@
+{
+    "profile": {
+      "display_name": "Marvin",
+      "age": 27,
+      "gender": "Male",
+      "pronouns": "he/him",
+      "location": "Sabah, Malaysia",
+      "orientation": "Seeking women for a long-term committed relationship"
+    },
+    "relationship": {
+      "intent": "Looking for a meaningful, long-term partnership",
+      "pace_to_meet": "Prefers to build comfort first, then meet within a reasonable timeframe"
+    },
+    "lifestyle": {
+      "social_energy": "Balanced; enjoys going out but also values quiet nights in",
+      "weekend_default": "Gym, reading, movies, or hanging out with close friends",
+      "travel_style": "Loves planned trips, especially nature or cultural destinations",
+      "work_life_balance": "Keeps work focused during weekdays; prioritizes personal life",
+      "pets": "Would like a dog in the future"
+    },
+    "values": {
+      "family_closeness": "Family-oriented and sees long-term relationships as a shared journey",
+      "money_mindset": "Financially responsible; plans for stability",
+      "openness_to_kids": "Open to kids someday",
+      "faith_importance": "Moderate",
+      "political_engagement": "Low to moderate",
+      "other_values": ["Loyalty", "Personal growth"]
+    },
+    "communication": {
+      "conflict_style": "Direct but calm; prefers resolving things quickly and respectfully",
+      "texting_cadence": "Consistent and responsive",
+      "love_languages": ["Acts of service", "Quality time"]
+    },
+    "empathy_accountability": {
+      "past_relationship_reflection": "Understands the importance of emotional presence and consistency",
+      "accountability_style": "Owns his mistakes and communicates openly",
+      "red_flags_detected": [
+        "May become overly absorbed in work if not careful"
+      ]
+    },
+    "dealbreakers": [
+      "Dishonesty",
+      "Lack of ambition",
+      "People who are not emotionally available"
+    ],
+    "must_haves": [
+      "Shared values",
+      "Mutual respect",
+      "Emotional maturity"
+    ],
+    "additional_notes": "Marvin is grounded, thoughtful, and ready to invest in a real partnership built on trust and shared life goals.",
+    "AI_summary": "Marvin, 27 from Penang, seeks a long-term committed relationship. He values stability, emotional maturity, and steady communication.",
+    "confidence_score": "medium"
+  }
+  
