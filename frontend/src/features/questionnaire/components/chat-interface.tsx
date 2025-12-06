@@ -13,6 +13,9 @@ import {
   useOnboardingStart,
   useOnboardingReply,
 } from "@/features/onboarding/api/use-onboarding";
+import { useUpdateProfile } from "@/features/profiles/api/use-current-user-profile";
+import type { FullProfile } from "@/features/profiles/types/profile-schema";
+import ProfileEditor from "@/features/onboarding/components/profile-editor";
 
 interface Message {
   id: string;
@@ -36,14 +39,6 @@ interface ChatInterfaceProps {
 }
 
 type ChatStatus = "chat" | "processing" | "summary";
-
-type PersonaSummary = {
-  title: string;
-  subtitle: string;
-  traits: string[];
-  goals: string[];
-  recommendations: string[];
-};
 
 // Extracted and memoized components to prevent re-renders
 
@@ -155,77 +150,6 @@ const ProcessingPanel = memo(({ progress }: ProcessingPanelProps) => (
 ));
 ProcessingPanel.displayName = "ProcessingPanel";
 
-interface PersonaReportProps {
-  persona: PersonaSummary;
-  onFinish: () => void;
-}
-
-const PersonaReport = memo(({ persona, onFinish }: PersonaReportProps) => (
-  <div className="animate-fade-in-up">
-    <Card className="shadow-elevated border-primary/20">
-      <CardHeader className="space-y-2">
-        <CardTitle className="text-xl flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-primary" />
-          {persona.title}
-        </CardTitle>
-        <p className="text-sm text-muted-foreground">{persona.subtitle}</p>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <h4 className="text-sm font-semibold text-foreground">Personality signals</h4>
-          <ul className="space-y-2 text-sm text-muted-foreground">
-            {persona.traits.map((trait, idx) => (
-              <li key={idx} className="flex gap-2">
-                <span className="text-primary">•</span>
-                <span>{trait}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="space-y-2">
-          <h4 className="text-sm font-semibold text-foreground">Goals & focus</h4>
-          <ul className="space-y-2 text-sm text-muted-foreground">
-            {persona.goals.map((goal, idx) => (
-              <li key={idx} className="flex gap-2">
-                <span className="text-primary">•</span>
-                <span>{goal}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="space-y-2">
-          <h4 className="text-sm font-semibold text-foreground">Recommendations</h4>
-          <ul className="space-y-2 text-sm text-muted-foreground">
-            {persona.recommendations.map((rec, idx) => (
-              <li key={idx} className="flex gap-2">
-                <span className="text-primary">•</span>
-                <span>{rec}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="pt-2 flex flex-wrap gap-2">
-          <Badge variant="outline" className="border-primary/40 text-primary">Personality</Badge>
-          <Badge variant="outline" className="border-primary/40 text-primary">Goals</Badge>
-          <Badge variant="outline" className="border-primary/40 text-primary">Growth plan</Badge>
-        </div>
-
-        <div className="pt-2 flex justify-end">
-          <Button
-            onClick={onFinish}
-            className="gradient-primary text-primary-foreground shadow-soft hover:shadow-elevated px-4"
-          >
-            Finish onboarding
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  </div>
-));
-PersonaReport.displayName = "PersonaReport";
 
 interface ChatHeaderProps {
   answeredQuestions: number;
@@ -304,7 +228,7 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<ChatStatus>("chat");
   const [processingProgress, setProcessingProgress] = useState(0);
-  const [persona, setPersona] = useState<PersonaSummary | null>(null);
+  const [fullProfile, setFullProfile] = useState<FullProfile | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -316,6 +240,7 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
   // API hooks
   const onboardingStartMutation = useOnboardingStart();
   const onboardingReplyMutation = useOnboardingReply();
+  const updateProfileMutation = useUpdateProfile();
 
   const totalQuestions = categories.reduce((acc, cat) => acc + cat.questions.length, 0);
   const answeredQuestions = Object.keys(answers).length;
@@ -398,29 +323,51 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
     });
   };
 
-  const buildPersonaSummary = useCallback((): PersonaSummary => {
+  const buildFallbackProfile = useCallback((): FullProfile => {
     const pick = (catId: string, questionIndex: number) =>
-      answers[`${catId}-${questionIndex}`] ?? "—";
+      answers[`${catId}-${questionIndex}`] ?? "";
 
+    // Build a minimal FullProfile from frontend-only answers
     return {
-      title: "Aligned Explorer",
-      subtitle: "Balanced, intentional, and ready for meaningful connection",
-      traits: [
-        `Financial philosophy: ${pick("financial", 0)}; risk stance: ${pick("financial", 1)}`,
-        `Lifestyle vision: ${pick("lifestyle", 0)}; kids: ${pick("lifestyle", 1)}; stability: ${pick("lifestyle", 2)}`,
-        `Conflict style: ${pick("conflict", 0)} with ${pick("conflict", 1)} communication; stress response: ${pick("conflict", 2)}`,
-        `Values & boundaries: ${pick("values", 0)}; alone time: ${pick("values", 1)}; growth: ${pick("values", 2)}`
-      ],
-      goals: [
-        "Find partners whose values and lifestyle pace stay in sync with yours",
-        "Create agreements around finances and space that feel transparent and fair",
-        "Keep communication warm but clear, especially around travel, stability, and alone time"
-      ],
-      recommendations: [
-        "Start with shared planning rituals: weekly check-ins on goals, budget, and quality time",
-        "Design travel or relocation rules that align with your stability preferences",
-        "Use conflict scripts: lead with needs, name feelings, propose one actionable next step"
-      ]
+      profile: {
+        display_name: "New User",
+        age: 25,
+        gender: "Not specified",
+        location: "Not specified",
+        orientation: "Looking for meaningful connections",
+      },
+      relationship: {
+        intent: "Finding a compatible partner",
+      },
+      lifestyle: {
+        social_energy: pick("lifestyle", 0) || null,
+        weekend_default: null,
+        travel_style: pick("lifestyle", 2) || null,
+        work_life_balance: null,
+        pets: null,
+      },
+      values: {
+        family_closeness: null,
+        money_mindset: pick("financial", 0) || null,
+        openness_to_kids: pick("lifestyle", 1) || null,
+        faith_importance: null,
+        political_engagement: null,
+        other_values: [pick("values", 0), pick("values", 2)].filter(Boolean),
+      },
+      communication: {
+        conflict_style: pick("conflict", 0) || null,
+        texting_cadence: pick("conflict", 1) || null,
+        love_languages: [],
+      },
+      empathy_accountability: {
+        past_relationship_reflection: null,
+        accountability_style: null,
+        red_flags_detected: [],
+      },
+      dealbreakers: [],
+      must_haves: [],
+      agent_persona: {},
+      AI_summary: "Profile created from onboarding questionnaire",
     };
   }, [answers]);
 
@@ -450,8 +397,8 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
         setProcessingProgress(step.progress);
         if (index === steps.length - 1) {
           setTimeout(() => {
-            const personaSummary = buildPersonaSummary();
-            setPersona(personaSummary);
+            const fallbackProfile = buildFallbackProfile();
+            setFullProfile(fallbackProfile);
             setStatus("summary");
             setMessages(prev => [
               ...prev,
@@ -466,7 +413,7 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
         }
       }, step.delay);
     });
-  }, [status, buildPersonaSummary]);
+  }, [status, buildFallbackProfile]);
 
   // Use ref to hold askQuestion to avoid circular dependency in useCallback
   const askQuestionRef = useRef<(categoryIndex?: number, questionIndex?: number) => void>(() => {});
@@ -566,23 +513,7 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
             // Check if onboarding is complete
             if (data.done && data.persona_json) {
               setStatus("summary");
-              const backendPersona = data.persona_json;
-              setPersona({
-                title: (backendPersona.profile as any)?.display_name ?? "Your Profile",
-                subtitle: (backendPersona.AI_summary as string) ?? "Ready for meaningful connection",
-                traits: [
-                  `Values: ${(backendPersona.values as string[])?.slice(0, 3).join(", ") ?? "—"}`,
-                  `Interests: ${(backendPersona.hobbies as string[])?.slice(0, 3).join(", ") ?? "—"}`,
-                ],
-                goals: [
-                  "Find partners whose values align with yours",
-                  "Build meaningful connections based on shared interests",
-                ],
-                recommendations: [
-                  "Be authentic in your conversations",
-                  "Focus on shared values and interests",
-                ],
-              });
+              setFullProfile(data.persona_json as FullProfile);
             }
           },
           onError: () => {
@@ -670,24 +601,7 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
             // Check if onboarding is complete
             if (data.done && data.persona_json) {
               setStatus("summary");
-              // Convert backend persona to our format
-              const backendPersona = data.persona_json;
-              setPersona({
-                title: (backendPersona.profile as any)?.display_name ?? "Your Profile",
-                subtitle: (backendPersona.AI_summary as string) ?? "Ready for meaningful connection",
-                traits: [
-                  `Values: ${(backendPersona.values as string[])?.slice(0, 3).join(", ") ?? "—"}`,
-                  `Interests: ${(backendPersona.hobbies as string[])?.slice(0, 3).join(", ") ?? "—"}`,
-                ],
-                goals: [
-                  "Find partners whose values align with yours",
-                  "Build meaningful connections based on shared interests",
-                ],
-                recommendations: [
-                  "Be authentic in your conversations",
-                  "Focus on shared values and interests",
-                ],
-              });
+              setFullProfile(data.persona_json as FullProfile);
             }
           },
           onError: () => {
@@ -724,9 +638,21 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
     setInputValue(value);
   }, []);
 
-  const handleFinish = useCallback(() => {
-    navigate("/dashboard");
-  }, [navigate]);
+  const handleProfileSave = useCallback((updatedProfile: FullProfile) => {
+    updateProfileMutation.mutate(
+      { userId, profile: updatedProfile },
+      {
+        onSuccess: () => {
+          navigate("/dashboard");
+        },
+        onError: (error) => {
+          console.error("Failed to save profile:", error);
+          // Still navigate on error - profile was already saved during onboarding
+          navigate("/dashboard");
+        },
+      }
+    );
+  }, [userId, updateProfileMutation, navigate]);
 
   return (
     <div className="min-h-screen bg-background flex flex-col relative">
@@ -760,8 +686,12 @@ const ChatInterface = ({ categories }: ChatInterfaceProps) => {
               ))}
               {isTyping && <TypingIndicator />}
               {status === "processing" && <ProcessingPanel progress={processingProgress} />}
-              {status === "summary" && persona && (
-                <PersonaReport persona={persona} onFinish={handleFinish} />
+              {status === "summary" && fullProfile && (
+                <ProfileEditor 
+                  profile={fullProfile} 
+                  onSave={handleProfileSave}
+                  isSaving={updateProfileMutation.isPending}
+                />
               )}
               <div ref={messagesEndRef} />
             </div>
